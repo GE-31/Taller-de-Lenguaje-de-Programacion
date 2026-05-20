@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulo %}Línea Imperial{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#4F46E5', dark: '#3730A3', light: '#818CF8' }
+          }
+        }
+      }
+    }
+  </script>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-800">
+  {% block contenido %}{% endblock %}
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,546 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulo %}{{ promo.titulo }} — Línea Imperial{% endblock %}
+
+{% block extra_css %}
+<style>
+  .tab-piso { display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:99px;font-weight:800;font-size:13px;cursor:pointer;border:none;transition:all .18s ease;white-space:nowrap;outline:none; }
+  .tab-on  { background:#1f2937;color:#fff;box-shadow:0 4px 14px rgba(31,41,55,.25); }
+  .tab-off { background:transparent;color:#6b7280; }
+  .tab-off:hover { background:#d1d5db; }
+  .spin-loader { width:30px;height:30px;border:3px solid #e5e7eb;border-top-color:#f59e0b;border-radius:50%;animation:_spin .75s linear infinite; }
+  @keyframes _spin { to { transform:rotate(360deg); } }
+  .btn-continuar-dis { background:#e5e7eb;color:#9ca3af;cursor:not-allowed; }
+  .btn-continuar-ok  { background:#e95c20;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(233,92,32,.35); }
+  .btn-continuar-ok:hover { background:#d14e18; }
+
+  .fecha-tab { cursor:pointer;border-radius:12px;padding:10px 14px;border:2px solid transparent;transition:all .15s;text-align:center;min-width:80px; }
+  .fecha-tab.activa { border-color:#e95c20;background:#fff7ed; }
+  .fecha-tab:not(.activa) { background:#fff;border-color:#e5e7eb; }
+  .fecha-tab:not(.activa):hover { border-color:#fed7aa;background:#fff7ed; }
+
+  .viaje-card { background:#fff;border-radius:20px;border:2px solid #f1f5f9;padding:20px 24px;transition:border-color .2s,box-shadow .2s; }
+  .viaje-card:hover { border-color:#fed7aa;box-shadow:0 6px 20px rgba(233,92,32,.1); }
+
+  .promo-hero-img { background-size:cover;background-position:center;background-repeat:no-repeat;position:relative; }
+  .promo-hero-overlay { background:linear-gradient(to bottom,rgba(0,0,0,0.35) 0%,rgba(26,39,72,0.72) 100%); }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ═══════════ NAVBAR ═══════════ -->
+<nav class="bg-white shadow-lg sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-20">
+      <a href="{% url 'publico:inicio' %}" class="flex items-center flex-shrink-0 -ml-2">
+        <img src="{% static 'img/logo.png' %}" alt="Línea Imperial" class="h-16 w-auto"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="items-center gap-3" style="display:none">
+          <div class="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center">
+            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          </div>
+          <span class="font-extrabold text-2xl text-gray-900">Línea<span class="text-orange-500">Imperial</span></span>
+        </div>
+      </a>
+
+      <div class="hidden lg:flex items-center gap-1">
+        <a href="{% url 'publico:inicio' %}" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">Inicio</a>
+        <a href="{% url 'publico:promociones' %}" class="px-4 py-2 text-sm font-semibold text-orange-600 bg-orange-50 rounded-lg border border-orange-200">Promociones</a>
+        {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+        <a href="{% url 'publico:rastreo' %}" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">Rastrea tu envío</a>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center gap-3">
+        {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+        <a href="{% url 'cuentas:mi_cuenta' %}" class="hidden sm:flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-white hover:shadow-sm transition">
+          <div class="h-8 w-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-black">{{ request.user.nombres|first|upper }}{{ request.user.apellidos|first|upper }}</div>
+          <div class="leading-tight">
+            <p class="text-xs text-gray-400 font-semibold">Mi cuenta</p>
+            <p class="text-sm text-gray-800 font-bold max-w-[130px] truncate">{{ request.user.nombres }}</p>
+          </div>
+        </a>
+        <a href="{% url 'cuentas:logout' %}" class="flex items-center gap-2 border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm font-bold px-4 py-2 rounded-lg transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span class="hidden sm:inline">Cerrar sesión</span>
+        </a>
+        {% else %}
+        <a href="{% url 'cuentas:login' %}?next={{ request.path }}" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md">
+          Iniciar sesión
+        </a>
+        {% endif %}
+        <button id="btn-menu" class="lg:hidden p-2 rounded-lg text-orange-500 border border-orange-400 hover:bg-orange-50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="menu-movil" class="hidden lg:hidden border-t border-gray-100 py-3 space-y-1">
+      <a href="{% url 'publico:inicio' %}" class="block px-4 py-2 text-sm font-medium text-gray-700 hover:bg-orange-50 rounded-lg">Inicio</a>
+      <a href="{% url 'publico:promociones' %}" class="block px-4 py-2 text-sm font-semibold text-orange-600 bg-orange-50 rounded-lg">Promociones</a>
+      {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+      <a href="{% url 'publico:rastreo' %}" class="block px-4 py-2 text-sm font-medium text-gray-700 hover:bg-orange-50 rounded-lg">Rastrea tu envío</a>
+      <a href="{% url 'cuentas:logout' %}" class="block px-4 py-2 text-sm font-bold text-orange-600 hover:bg-orange-50 rounded-lg">Cerrar sesión</a>
+      {% else %}
+      <a href="{% url 'cuentas:login' %}" class="block px-4 py-2 text-sm font-bold text-orange-600 hover:bg-orange-50 rounded-lg">Iniciar sesión</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════ BANNER DE LA PROMO ═══════════ -->
+<div class="promo-hero-img relative min-h-[280px] flex items-end"
+     {% if promo.imagen %}style="background-image:url('{% static promo.imagen %}');"{% else %}style="background:#1a2748"{% endif %}>
+  <div class="promo-hero-overlay absolute inset-0"></div>
+  <div class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-16">
+    <a href="{% url 'publico:promociones' %}" class="inline-flex items-center gap-1 text-white/70 hover:text-white text-xs font-semibold mb-3 transition-colors">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      Volver a promociones
+    </a>
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div>
+        <span class="inline-block bg-orange-500 text-white text-xs font-black px-3 py-1 rounded-full mb-2">-{{ promo.porcentaje_descuento }}% DESCUENTO · {{ promo.get_servicio_display }}</span>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white leading-tight drop-shadow-lg">{{ promo.titulo }}</h1>
+        <p class="text-white/80 text-sm mt-1">{{ promo.origen }} → {{ promo.destino }}</p>
+      </div>
+      <div class="bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-4 text-white">
+        <p class="text-white/70 text-xs font-semibold">Precio normal</p>
+        <p class="text-white/60 line-through text-sm font-semibold">S/ {{ promo.precio_normal }}</p>
+        <p class="text-3xl font-extrabold text-orange-200 leading-none mt-0.5">S/ {{ promo.precio_promocional }}</p>
+        <p class="text-green-300 text-xs font-bold mt-1">Ahorras S/ {{ promo.descuento }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TABS DE FECHA ═══════════ -->
+<div class="bg-gray-50 border-b border-gray-200 py-4">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      {% for p in pestanas %}
+      <a href="?fecha={{ p.fecha|date:'Y-m-d' }}"
+         class="fecha-tab flex-shrink-0 {% if p.activa %}activa{% endif %}">
+        <p class="text-xs font-bold {% if p.activa %}text-orange-600{% else %}text-gray-400{% endif %} uppercase">{{ p.fecha|date:"D" }}</p>
+        <p class="text-base font-extrabold {% if p.activa %}text-orange-700{% else %}text-gray-700{% endif %}">{{ p.fecha|date:"d M." }}</p>
+        {% if p.tiene_viaje %}
+        <div class="w-1.5 h-1.5 rounded-full bg-green-500 mx-auto mt-1"></div>
+        {% else %}
+        <div class="w-1.5 h-1.5 rounded-full bg-gray-300 mx-auto mt-1"></div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ LISTA DE VIAJES ═══════════ -->
+<div class="bg-gray-50 min-h-[60vh] py-8">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    {% if viajes %}
+    <div class="space-y-4">
+      {% for v in viajes %}
+      <div class="viaje-card">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+          <!-- Horario y ruta -->
+          <div class="flex items-center gap-6">
+            <div class="text-center">
+              <p class="text-2xl font-extrabold text-gray-900 leading-none">{{ v.fecha_salida|date:"H:i" }}</p>
+              <p class="text-xs text-gray-400 font-semibold mt-0.5">{{ v.ruta.origen }}</p>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="text-[10px] text-gray-400 font-semibold">{{ v.ruta.duracion_estimada }}</div>
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                <div class="w-16 sm:w-24 h-0.5 bg-gray-200"></div>
+                <svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </div>
+              <div class="text-[10px] text-gray-400 font-semibold">Directo</div>
+            </div>
+            <div class="text-center">
+              <p class="text-2xl font-extrabold text-gray-900 leading-none">{{ v.fecha_llegada_estimada|date:"H:i" }}</p>
+              <p class="text-xs text-gray-400 font-semibold mt-0.5">{{ v.ruta.destino }}</p>
+            </div>
+          </div>
+
+          <!-- Empresa + asientos -->
+          <div class="flex items-center gap-4 text-xs text-gray-500">
+            <div>
+              <p class="font-bold text-gray-700">{{ v.bus.empresa }}</p>
+              <p>{{ v.bus.get_tipo_servicio_display }}</p>
+            </div>
+            <div class="text-center">
+              <p class="font-bold text-gray-700">{{ v.asientos_disponibles }}</p>
+              <p>disponibles</p>
+            </div>
+          </div>
+
+          <!-- Precio + botón -->
+          <div class="flex-shrink-0 flex flex-col items-end gap-2">
+            <div class="text-right">
+              <p class="text-xs text-gray-400 line-through">S/ {{ v.precio }}</p>
+              <p class="text-2xl font-extrabold text-orange-600 leading-none">S/ {{ promo.precio_promocional }}</p>
+              <p class="text-xs text-green-600 font-bold">-{{ promo.porcentaje_descuento }}%</p>
+            </div>
+            {% if v.asientos_disponibles > 0 %}
+            {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+            <button type="button"
+                    onclick="abrirAsientos(this)"
+                    data-viaje-id="{{ v.id }}"
+                    data-precio="{{ v.precio }}"
+                    data-promo-id="{{ promo.id }}"
+                    data-precio-promo="{{ promo.precio_promocional }}"
+                    data-origen="{{ v.ruta.origen }}"
+                    data-destino="{{ v.ruta.destino }}"
+                    data-salida="{{ v.fecha_salida|date:'H:i' }}"
+                    data-llegada="{{ v.fecha_llegada_estimada|date:'H:i' }}"
+                    data-empresa="{{ v.bus.empresa }}"
+                    data-tipo="{{ v.bus.get_tipo_servicio_display }}"
+                    data-doble-piso="{% if v.bus.tipo_servicio != 'bus_cama_vip' %}true{% else %}false{% endif %}"
+                    data-fecha="{{ v.fecha_salida|date:'D., d M. Y' }}"
+                    class="bg-[#e95c20] hover:bg-[#d14e18] text-white font-extrabold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-md shadow-orange-200 whitespace-nowrap">
+              Elegir asientos
+            </button>
+            {% else %}
+            <a href="{% url 'cuentas:login' %}?next={{ request.path }}"
+               class="bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold text-sm px-6 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+              Inicia sesión
+            </a>
+            {% endif %}
+            {% else %}
+            <button disabled class="bg-gray-200 text-gray-400 font-extrabold text-sm px-6 py-2.5 rounded-xl cursor-not-allowed whitespace-nowrap">AGOTADO</button>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-14 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <h3 class="font-bold text-gray-800 text-lg mb-1">Sin viajes para esta fecha</h3>
+      <p class="text-gray-500 text-sm">Selecciona otra fecha en las pestañas de arriba.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ═══════════ MODAL DE ASIENTOS ═══════════ -->
+<div id="modal-asientos" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="cerrarModal()"></div>
+  <div class="absolute inset-3 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-h-[92vh] w-full max-w-4xl bg-white rounded-[32px] shadow-[0_26px_60px_rgba(15,23,42,0.25)] flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <div class="bg-slate-900 text-white px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="space-y-2">
+        <p id="m-ruta" class="font-black text-xl leading-tight"></p>
+        <p class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+          <span id="m-empresa" class="font-semibold"></span>
+          <span class="opacity-50">·</span>
+          <span id="m-tipo"></span>
+          <span class="opacity-50">·</span>
+          <span id="m-horario" class="text-slate-300"></span>
+        </p>
+      </div>
+      <div class="flex items-center gap-3 justify-between sm:justify-end">
+        <div class="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm text-orange-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span id="m-timer" class="font-medium">10:00</span>
+        </div>
+        <button onclick="cerrarModal()" class="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs + leyenda -->
+    <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;flex-shrink:0">
+      <div style="display:inline-flex;background:#e5e7eb;padding:4px;border-radius:99px;gap:3px">
+        <button onclick="cambiarPiso(1,this)" id="tab1" class="tab-piso tab-on">Piso #1</button>
+        <button onclick="cambiarPiso(2,this)" id="tab2" class="tab-piso tab-off">Piso #2</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;font-size:11px;font-weight:600;color:#4b5563;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;border-radius:50%;background:#22c55e;display:inline-block"></span>Libre</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;border-radius:50%;background:#fbbf24;display:inline-block"></span>Reservado</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;border-radius:50%;background:#ef4444;display:inline-block"></span>Ocupado</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;border-radius:50%;background:#e95c20;display:inline-block"></span>Tu selección</span>
+      </div>
+    </div>
+
+    <!-- Área del bus -->
+    <div style="flex:1;overflow:hidden;padding:14px 18px;display:flex;flex-direction:column">
+      <div style="flex:1;display:flex;overflow:hidden;border:2px solid #334155;border-radius:24px;min-height:210px">
+        <!-- Frente -->
+        <div style="flex-shrink:0;width:58px;background:#1e293b;border-right:2px solid #334155;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 6px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">
+              <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="rgba(255,255,255,.8)" stroke="none"/><path stroke-linecap="round" d="M4.5 12h5M14.5 12h5M12 4.5v5M12 14.5v5"/></svg>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Chófer</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:16px;height:24px;border:2px dashed rgba(255,255,255,.3);border-radius:3px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+              <div style="width:1.5px;height:14px;background:rgba(255,255,255,.2);border-radius:1px"></div>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Puerta</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:30px;height:30px;border-radius:8px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" fill="none" stroke="rgba(251,191,36,.8)" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 20h4v-4h4v-4h4v-4h4V4"/></svg>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Escalera</span>
+          </div>
+        </div>
+        <!-- Asientos -->
+        <div style="flex:1;overflow:auto;background:rgba(248,250,252,.7);padding:16px 14px">
+          <div id="mapa-asientos" style="display:inline-flex;flex-direction:column;gap:4px;min-height:150px;min-width:200px">
+            <div style="display:flex;align-items:center;justify-content:center;height:130px;width:220px"><div class="spin-loader"></div></div>
+          </div>
+        </div>
+        <!-- Baños -->
+        <div style="flex-shrink:0;width:58px;background:#f8fafc;border-left:2px solid #e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:space-around;padding:16px 6px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:38px;border-radius:10px;background:#eff6ff;border:1.5px solid #bfdbfe;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+              <svg width="14" height="14" fill="none" stroke="#60a5fa" stroke-width="1.8" viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="6" ry="3"/><path stroke-linecap="round" d="M6 8v7c0 1.66 2.69 3 6 3s6-1.34 6-3V8"/><path stroke-linecap="round" d="M6 11.5c0 1.66 2.69 3 6 3s6-1.34 6-3"/></svg>
+              <span style="font-size:7px;font-weight:900;color:#60a5fa">WC</span>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;text-align:center">Baño</span>
+          </div>
+          <div style="width:30px;border-top:1.5px dashed #cbd5e1"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:38px;border-radius:10px;background:#eff6ff;border:1.5px solid #bfdbfe;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+              <svg width="14" height="14" fill="none" stroke="#60a5fa" stroke-width="1.8" viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="6" ry="3"/><path stroke-linecap="round" d="M6 8v7c0 1.66 2.69 3 6 3s6-1.34 6-3V8"/><path stroke-linecap="round" d="M6 11.5c0 1.66 2.69 3 6 3s6-1.34 6-3"/></svg>
+              <span style="font-size:7px;font-weight:900;color:#60a5fa">WC</span>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;text-align:center">Baño</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer modal -->
+    <div style="border-top:1px solid #f1f5f9;background:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="22" height="18" fill="none" stroke="#9ca3af" stroke-width="1.6" viewBox="0 0 30 20"><rect x="1" y="3" width="28" height="13" rx="3"/><path stroke-linecap="round" d="M1 9h28M8 16v2M22 16v2"/><circle cx="6" cy="12.5" r="1.2" fill="#9ca3af" stroke="none"/><circle cx="24" cy="12.5" r="1.2" fill="#9ca3af" stroke="none"/><path stroke-linecap="round" d="M28 3l2 3v4h-2"/></svg>
+        <span id="m-tipo-footer" style="font-size:13px;font-weight:700;color:#374151"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+        <button id="btn-continuar" onclick="continuar()" disabled
+                class="btn-continuar-dis font-extrabold text-sm px-8 py-2.5 rounded-xl transition-all whitespace-nowrap">
+          Continuar: S/0
+        </button>
+        <span style="font-size:12px;color:#6b7280;font-weight:500">
+          N° asientos: <span id="m-count" style="font-weight:800;color:#111827">0</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('btn-menu').addEventListener('click', () => {
+  document.getElementById('menu-movil').classList.toggle('hidden');
+});
+
+const TIMER_KEY = 'asiento_timer_promo';
+const TIMER_MS  = 600000;
+const PISO_SPLITS = { economico:44, bus_cama:36, bus_cama_vip:20 };
+const COLORES_TIPO = {
+  economico:    { bg:'#22c55e', br:'#16a34a', txt:'#14532d', glow:'rgba(34,197,94,.6)'  },
+  bus_cama:     { bg:'#3b82f6', br:'#2563eb', txt:'#1e3a8a', glow:'rgba(59,130,246,.6)' },
+  bus_cama_vip: { bg:'#d97706', br:'#b45309', txt:'#451a03', glow:'rgba(217,119,6,.6)'  },
+};
+
+let modalData = {};
+let asientosSeleccionados = new Set();
+let pisoActual = 1;
+let timerInterval = null;
+
+function abrirAsientos(btn) {
+  const precioPromo = parseFloat(btn.dataset.precioPromo);
+  modalData = {
+    viajeId:         btn.dataset.viajeId,
+    precio:          parseFloat(btn.dataset.precio),
+    promoId:         btn.dataset.promoId,
+    precioEfectivo:  precioPromo,
+    origen:          btn.dataset.origen,
+    destino:         btn.dataset.destino,
+    salida:          btn.dataset.salida,
+    llegada:         btn.dataset.llegada,
+    empresa:         btn.dataset.empresa,
+    tipo:            btn.dataset.tipo,
+    fecha:           btn.dataset.fecha,
+    esDoble:         btn.dataset.doblePiso === 'true',
+    capacidad:       0,
+    reservados:      new Set(),
+  };
+  asientosSeleccionados = new Set();
+  pisoActual = 1;
+
+  document.getElementById('m-ruta').textContent    = `${modalData.origen} → ${modalData.destino}`;
+  document.getElementById('m-empresa').textContent = modalData.empresa;
+  document.getElementById('m-tipo').textContent    = modalData.tipo;
+  document.getElementById('m-horario').textContent = `${modalData.salida} – ${modalData.llegada} · ${modalData.fecha}`;
+  const tf = document.getElementById('m-tipo-footer');
+  if (tf) tf.textContent = modalData.tipo;
+
+  activarTab(document.getElementById('tab1'));
+  pisoActual = 1;
+  localStorage.setItem(TIMER_KEY, Date.now().toString());
+  iniciarTimer();
+  document.getElementById('modal-asientos').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('mapa-asientos').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:130px;width:220px"><div class="spin-loader"></div></div>';
+  fetch(`/viajes/asientos/${modalData.viajeId}/`)
+    .then(r => r.json())
+    .then(data => {
+      modalData.capacidad  = data.capacidad;
+      modalData.pisoSplit  = data.piso_split;
+      modalData.reservados = new Set(data.reservados);
+      modalData.ocupados   = new Set(data.ocupados);
+      const tab1 = document.getElementById('tab1');
+      if (data.piso_split >= data.capacidad) {
+        tab1.style.display = 'none'; pisoActual = 2;
+      } else {
+        tab1.style.display = 'inline-flex';
+      }
+      renderMapa();
+    })
+    .catch(() => toast('Error al cargar asientos.'));
+}
+
+function cerrarModal() {
+  document.getElementById('modal-asientos').classList.add('hidden');
+  document.body.style.overflow = '';
+  clearInterval(timerInterval);
+}
+
+function iniciarTimer() {
+  clearInterval(timerInterval);
+  actualizarDisplay();
+  timerInterval = setInterval(() => {
+    const r = restante();
+    if (r <= 0) { clearInterval(timerInterval); cerrarModal(); toast('El tiempo de selección expiró.'); return; }
+    actualizarDisplay();
+  }, 1000);
+}
+function restante() {
+  const start = parseInt(localStorage.getItem(TIMER_KEY) || '0');
+  return Math.max(0, TIMER_MS - (Date.now() - start));
+}
+function actualizarDisplay() {
+  const r = restante(), s = Math.floor(r/1000);
+  const txt = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+  const el = document.getElementById('m-timer');
+  if (!el) return;
+  el.textContent = txt;
+  el.className = r < 60000 ? 'font-mono font-bold text-sm text-red-400 animate-pulse' : 'font-mono font-bold text-sm text-orange-400';
+}
+
+function activarTab(btn) {
+  ['tab1','tab2'].forEach(id => {
+    const t = document.getElementById(id);
+    if (!t) return;
+    t.className = t === btn ? 'tab-piso tab-on' : 'tab-piso tab-off';
+  });
+}
+function cambiarPiso(piso, btn) { pisoActual = piso; activarTab(btn); renderMapa(); }
+
+function renderMapa() {
+  const cap = modalData.capacidad;
+  const tipo = (modalData.tipo || 'economico').toLowerCase().replace(/ /g,'_');
+  const tipoKey = tipo.includes('vip') ? 'bus_cama_vip' : tipo.includes('cama') ? 'bus_cama' : 'economico';
+  const split = modalData.pisoSplit || Math.floor(cap/2);
+  let desde, hasta;
+  if (pisoActual === 2) { desde=1; hasta=Math.min(split,cap); }
+  else { desde=split+1; hasta=cap; }
+  const total = hasta - desde + 1;
+  if (total <= 0) { document.getElementById('mapa-asientos').innerHTML='<p style="color:#9ca3af;font-size:13px;padding:40px 20px">Sin asientos.</p>'; return; }
+  const cols = Math.ceil(total/4);
+  const gapSize = tipoKey === 'bus_cama_vip' ? '15px' : '5px';
+  const GAP = `<div style="width:${gapSize};flex-shrink:0"></div>`;
+  let rA='',rB='',rC='',rD='';
+  for (let c=0;c<cols;c++) {
+    const nA=desde+c*4+0,nB=desde+c*4+1,nC=desde+c*4+2,nD=desde+c*4+3;
+    const ph='<div style="width:64px;height:62px;flex-shrink:0"></div>';
+    rA+=(nA<=hasta?asientoHTML(nA,tipoKey):ph)+GAP;
+    rB+=(nB<=hasta?asientoHTML(nB,tipoKey):ph)+GAP;
+    rC+=(nC<=hasta?asientoHTML(nC,tipoKey):ph)+GAP;
+    rD+=(nD<=hasta?asientoHTML(nD,tipoKey):ph)+GAP;
+  }
+  document.getElementById('mapa-asientos').innerHTML=`
+    <div style="display:flex">${rA}</div>
+    <div style="display:flex">${rB}</div>
+    <div style="height:26px;display:flex;align-items:center;gap:6px">
+      <div style="flex:1;border-top:2px dashed #94a3b8"></div>
+      <span style="font-size:9px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap;background:#e2e8f0;padding:2px 8px;border-radius:99px;flex-shrink:0">Pasillo</span>
+      <div style="flex:1;border-top:2px dashed #94a3b8"></div>
+    </div>
+    <div style="display:flex">${rC}</div>
+    <div style="display:flex">${rD}</div>`;
+}
+
+function asientoHTML(num, tipo) {
+  const lbl=num.toString().padStart(2,'0');
+  const ocu=modalData.ocupados.has(num), res=modalData.reservados.has(num), sel=asientosSeleccionados.has(num);
+  const W='flex-shrink:0;width:64px;';
+  if (ocu) return `<div title="Ocupado" style="${W}cursor:not-allowed;user-select:none"><div style="background:#fca5a5;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div><div style="background:#ef4444;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff">${lbl}</div></div>`;
+  if (res) return `<div title="Reservado" style="${W}cursor:not-allowed;user-select:none"><div style="background:#fde68a;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div><div style="background:#fbbf24;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#78350f">${lbl}</div></div>`;
+  if (sel) return `<div onclick="toggleAsiento(${num})" title="Quitar" style="${W}cursor:pointer;user-select:none;transform:translateY(-4px);filter:drop-shadow(0 8px 12px rgba(233,92,32,.5))"><div style="background:#c2410c;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div><div style="background:#e95c20;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff">${lbl}</div></div>`;
+  const c=COLORES_TIPO[tipo]||COLORES_TIPO.economico;
+  return `<div onclick="toggleAsiento(${num})" title="Libre" onmouseover="this.style.transform='translateY(-3px)';this.style.filter='drop-shadow(0 6px 10px ${c.glow})'" onmouseout="this.style.transform='none';this.style.filter='none'" style="${W}cursor:pointer;user-select:none;transition:all .15s"><div style="background:${c.br};border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div><div style="background:${c.bg};border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:${c.txt}">${lbl}</div></div>`;
+}
+
+function toggleAsiento(num) {
+  if (asientosSeleccionados.has(num)) { asientosSeleccionados.delete(num); }
+  else {
+    if (asientosSeleccionados.size >= 4) { toast('Máximo 4 asientos por compra.'); return; }
+    asientosSeleccionados.add(num);
+  }
+  renderMapa(); actualizarFooter();
+}
+
+function actualizarFooter() {
+  const n=asientosSeleccionados.size;
+  const tot=(modalData.precioEfectivo*n).toFixed(0);
+  document.getElementById('m-count').textContent=n;
+  const tf=document.getElementById('m-tipo-footer');
+  if (tf) tf.textContent=modalData.tipo||'';
+  const btn=document.getElementById('btn-continuar');
+  btn.textContent=`Continuar: S/${tot}`;
+  btn.disabled=n===0;
+  btn.className=`btn-continuar-${n?'ok':'dis'} font-extrabold text-sm px-8 py-2.5 rounded-xl transition-all whitespace-nowrap`;
+}
+
+function continuar() {
+  if (!asientosSeleccionados.size) return;
+  const asientos=[...asientosSeleccionados].sort((a,b)=>a-b).join(',');
+  window.location.href=`/viajes/pagar/${modalData.viajeId}/?asientos=${asientos}&promo_id=${modalData.promoId}`;
+}
+
+function toast(msg) {
+  const el=document.createElement('div');
+  el.className='fixed top-5 left-1/2 -translate-x-1/2 z-[300] bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-2xl pointer-events-none';
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') cerrarModal(); });
+</script>
+{% endblock %}
