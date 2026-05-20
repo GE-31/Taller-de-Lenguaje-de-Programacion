@@ -2,9 +2,9 @@
 
 # Sistema de Venta de Pasajes Terrestres Interprovinciales
 
-Proyecto web desarrollado para el curso **Taller de Lenguaje de Programación**.
+Proyecto académico desarrollado para el curso **Taller de Lenguaje de Programación**.
 
-Sistema orientado a la gestión de venta de pasajes, rutas, promociones, clientes, encomiendas y administración interna para una empresa de transporte terrestre.
+Sistema web para la gestión de venta de pasajes, rutas, promociones, clientes, encomiendas y administración interna de una empresa de transporte terrestre.
 
 </div>
 
@@ -12,24 +12,25 @@ Sistema orientado a la gestión de venta de pasajes, rutas, promociones, cliente
 
 ## Descripción
 
-Este proyecto permite simular y administrar el flujo principal de una empresa de transporte interprovincial, incluyendo interfaces públicas para clientes y módulos internos para la gestión operativa.
+Este sistema permite administrar los procesos principales de una empresa de transporte interprovincial. Incluye interfaces públicas para clientes y módulos internos para trabajadores, facilitando la venta de pasajes, consulta de promociones, gestión de encomiendas, rutas, viajes y operaciones administrativas.
 
-El sistema está desarrollado con una arquitectura web basada en Django, separando las funcionalidades por módulos para facilitar el trabajo colaborativo del equipo.
+El proyecto está desarrollado con **Django** y organizado por aplicaciones para permitir un trabajo colaborativo ordenado entre los integrantes del equipo.
 
 ---
 
 ## Funcionalidades principales
 
 - Página principal informativa.
-- Visualización de promociones.
 - Registro e inicio de sesión de clientes.
+- Visualización de promociones.
 - Consulta de rutas y destinos.
 - Interfaz de rastreo.
 - Libro de reclamaciones.
-- Gestión de ventas de pasajes.
-- Administración de viajes, rutas y flota.
+- Venta de pasajes.
+- Gestión de viajes, rutas y flota.
 - Gestión de encomiendas.
 - Panel administrativo para trabajadores.
+- Control de usuarios, roles y permisos.
 
 ---
 
@@ -39,11 +40,13 @@ El sistema está desarrollado con una arquitectura web basada en Django, separan
 |---|---|
 | Python | Lenguaje principal |
 | Django | Framework web |
+| Django REST Framework | Desarrollo de funcionalidades API |
 | HTML | Estructura de interfaces |
 | CSS / Tailwind | Estilos visuales |
 | JavaScript | Interactividad |
-| SQLite / Base de datos | Persistencia de datos |
-| Git y GitHub | Control de versiones |
+| PostgreSQL | Base de datos principal |
+| Docker | Contenedores para la aplicación y base de datos |
+| Git y GitHub | Control de versiones y trabajo colaborativo |
 
 ---
 
@@ -64,9 +67,13 @@ Taller-de-Lenguaje-de-Programacion/
 │   └── viajes/
 │
 ├── config/
+│   └── settings/
 ├── core/
 ├── static/
 │   └── img/
 ├── templates/
+├── docker-compose.yml
+├── Dockerfile
 ├── manage.py
-└── requirements.txt
+├── requirements.txt
+└── README.md
