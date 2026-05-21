@@ -1,0 +1,123 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Vender boleto - Linea Imperial{% endblock %}
+{% block titulo_pagina %}Vender boleto{% endblock %}
+
+{% block panel_contenido %}
+
+{% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for message in messages %}
+      <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{{ message }}</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr,420px]">
+  <form method="POST" class="rounded-[1.5rem] border border-orange-100 bg-white p-6 shadow-sm">
+    {% csrf_token %}
+    <div class="mb-6">
+      <p class="text-xs font-black uppercase tracking-widest text-orange-500">Venta de pasaje</p>
+      <h2 class="mt-1 text-2xl font-black text-slate-950">Registrar boleto</h2>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Selecciona un viaje, un asiento libre, registra pasajero y pago.</p>
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="space-y-6">
+      <section>
+        <h3 class="mb-3 text-sm font-black uppercase tracking-widest text-slate-500">1. Viaje disponible</h3>
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">{{ form.viaje.label }}</label>
+          {{ form.viaje }}
+          <p class="mt-1 text-xs font-semibold text-red-600">{{ form.viaje.errors }}</p>
+          <p class="mt-2 text-xs font-semibold text-slate-500">Al cambiar de viaje se actualizaran los datos y asientos disponibles.</p>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="mb-3 text-sm font-black uppercase tracking-widest text-slate-500">2. Datos del pasajero</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>{{ form.nombres.label_tag }}{{ form.nombres }}<p class="text-xs text-red-600">{{ form.nombres.errors }}</p></div>
+          <div>{{ form.apellidos.label_tag }}{{ form.apellidos }}<p class="text-xs text-red-600">{{ form.apellidos.errors }}</p></div>
+          <div>{{ form.dni.label_tag }}{{ form.dni }}<p class="text-xs text-red-600">{{ form.dni.errors }}</p></div>
+          <div>{{ form.telefono.label_tag }}{{ form.telefono }}<p class="text-xs text-red-600">{{ form.telefono.errors }}</p></div>
+          <div class="md:col-span-2">{{ form.correo.label_tag }}{{ form.correo }}<p class="text-xs text-red-600">{{ form.correo.errors }}</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="mb-3 text-sm font-black uppercase tracking-widest text-slate-500">3. Seleccion de asiento</h3>
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">{{ form.numero_asiento.label }}</label>
+          {{ form.numero_asiento }}
+          <p class="mt-1 text-xs font-semibold text-red-600">{{ form.numero_asiento.errors }}</p>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="mb-3 text-sm font-black uppercase tracking-widest text-slate-500">4. Pago</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>{{ form.metodo_pago.label_tag }}{{ form.metodo_pago }}<p class="text-xs text-red-600">{{ form.metodo_pago.errors }}</p></div>
+          <div>{{ form.monto_pagado.label_tag }}{{ form.monto_pagado }}<p class="text-xs text-red-600">{{ form.monto_pagado.errors }}</p></div>
+          <div>{{ form.estado_pago.label_tag }}{{ form.estado_pago }}<p class="text-xs text-red-600">{{ form.estado_pago.errors }}</p></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <a href="{% url 'panel:boletos' %}" class="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700">Cancelar</a>
+      <button class="rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-orange-200">Confirmar venta</button>
+    </div>
+  </form>
+
+  <aside class="space-y-5">
+    {% if viaje_seleccionado %}
+      <section class="rounded-[1.5rem] border border-orange-100 bg-white p-5 shadow-sm">
+        <p class="text-xs font-black uppercase tracking-widest text-orange-500">Viaje seleccionado</p>
+        <h3 class="mt-2 text-xl font-black text-slate-950">{{ viaje_seleccionado.ruta.origen }} -> {{ viaje_seleccionado.ruta.destino }}</h3>
+        <div class="mt-4 space-y-2 text-sm font-semibold text-slate-600">
+          <p>Fecha: {{ viaje_seleccionado.fecha_salida|date:"d/m/Y" }}</p>
+          <p>Hora: {{ viaje_seleccionado.fecha_salida|date:"H:i" }}</p>
+          <p>Bus: {{ viaje_seleccionado.bus.placa }}</p>
+          <p>Servicio: {{ viaje_seleccionado.bus.get_tipo_servicio_display }}</p>
+          <p>Precio: S/ {{ viaje_seleccionado.precio }}</p>
+          <p>Disponibles: {{ viaje_seleccionado.asientos_disponibles }}/{{ viaje_seleccionado.bus.capacidad }}</p>
+        </div>
+      </section>
+
+      <section class="rounded-[1.5rem] border border-orange-100 bg-white p-5 shadow-sm">
+        <p class="mb-3 text-xs font-black uppercase tracking-widest text-orange-500">Mapa rapido</p>
+        <div class="grid grid-cols-5 gap-2 sm:grid-cols-6">
+          {% for asiento in asientos %}
+            <button type="button"
+                    onclick="document.getElementById('id_numero_asiento').value='{{ asiento }}'"
+                    class="h-10 rounded-xl text-xs font-black {% if asiento in ocupados %}cursor-not-allowed bg-slate-200 text-slate-400{% else %}bg-orange-50 text-orange-700 ring-1 ring-orange-100 hover:bg-orange-600 hover:text-white{% endif %}"
+                    {% if asiento in ocupados %}disabled{% endif %}>
+              {{ asiento|stringformat:"02d" }}
+            </button>
+          {% endfor %}
+        </div>
+      </section>
+    {% else %}
+      <section class="rounded-[1.5rem] border border-orange-100 bg-white p-5 text-sm font-semibold text-slate-500 shadow-sm">
+        Selecciona un viaje para ver ruta, horarios, precio y asientos disponibles.
+      </section>
+    {% endif %}
+  </aside>
+</div>
+
+<script>
+  const viajeSelect = document.getElementById('id_viaje');
+  if (viajeSelect) {
+    viajeSelect.addEventListener('change', function () {
+      if (this.value) {
+        window.location.href = "{% url 'panel:vender_boleto' %}?viaje=" + this.value;
+      }
+    });
+  }
+</script>
+
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Reportes - Linea Imperial{% endblock %}
+{% block titulo_pagina %}Reportes{% endblock %}
+
+{% block panel_contenido %}
+
+<section class="rounded-[1.5rem] border border-orange-100 bg-white p-6 shadow-sm">
+  <p class="text-xs font-black uppercase tracking-widest text-orange-500">Estructura preparada</p>
+  <h2 class="mt-1 text-2xl font-black text-slate-950">Reportes de ventas</h2>
+  <p class="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+    Este modulo queda reservado para reportes de ventas por dia, ruta, viaje, trabajador, cancelaciones,
+    reprogramaciones, ingresos por fecha e ingresos por empresa.
+  </p>
+
+  <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div class="rounded-3xl border border-orange-100 bg-orange-50/60 p-5">
+      <p class="font-black text-slate-950">Ventas por dia</p>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Pendiente de graficos y filtros.</p>
+    </div>
+    <div class="rounded-3xl border border-orange-100 bg-orange-50/60 p-5">
+      <p class="font-black text-slate-950">Ventas por viaje</p>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Cruce de viajes y boletos.</p>
+    </div>
+    <div class="rounded-3xl border border-orange-100 bg-orange-50/60 p-5">
+      <p class="font-black text-slate-950">Cancelaciones</p>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Control de estados y devoluciones.</p>
+    </div>
+    <div class="rounded-3xl border border-orange-100 bg-orange-50/60 p-5">
+      <p class="font-black text-slate-950">Ingresos</p>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Fechas, empresa y trabajador.</p>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

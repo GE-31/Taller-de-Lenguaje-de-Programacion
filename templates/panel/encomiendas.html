@@ -1,0 +1,276 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Encomiendas — Línea Imperial{% endblock %}
+{% block titulo_pagina %}Encomiendas{% endblock %}
+
+{% block panel_contenido %}
+
+{{ rutas_encomienda|json_script:"rutas-encomienda-data" }}
+<style>
+  .errorlist {
+    margin-top: 0.25rem;
+    list-style: none;
+    padding-left: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #dc2626;
+  }
+</style>
+<script>
+function actualizarMetodoPagoEncomienda() {
+  const condicion = document.getElementById('id_condicion_pago');
+  const metodo = document.getElementById('id_metodo_pago');
+  if (!condicion || !metodo) return;
+  const porCobrar = condicion.value === 'cobro_destino';
+  metodo.disabled = porCobrar;
+  metodo.closest('div').classList.toggle('opacity-50', porCobrar);
+  if (porCobrar) metodo.value = '';
+}
+function actualizarDestinosEncomienda() {
+  const origen = document.getElementById('id_origen');
+  const destino = document.getElementById('id_destino');
+  const rutasEl = document.getElementById('rutas-encomienda-data');
+  if (!origen || !destino || !rutasEl) return;
+  const rutas = JSON.parse(rutasEl.textContent);
+  const destinoActual = destino.value;
+  const destinos = rutas
+    .filter(ruta => ruta.origen === origen.value)
+    .map(ruta => ruta.destino)
+    .filter((ciudad, index, lista) => ciudad && lista.indexOf(ciudad) === index)
+    .sort();
+  destino.innerHTML = '<option value="">Selecciona ciudad</option>';
+  destinos.forEach(ciudad => {
+    const option = document.createElement('option');
+    option.value = ciudad;
+    option.textContent = ciudad;
+    if (ciudad === destinoActual) option.selected = true;
+    destino.appendChild(option);
+  });
+}
+document.addEventListener('DOMContentLoaded', function () {
+  actualizarMetodoPagoEncomienda();
+  actualizarDestinosEncomienda();
+  const condicion = document.getElementById('id_condicion_pago');
+  if (condicion) condicion.addEventListener('change', actualizarMetodoPagoEncomienda);
+  const origen = document.getElementById('id_origen');
+  if (origen) origen.addEventListener('change', actualizarDestinosEncomienda);
+});
+</script>
+
+{% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for message in messages %}
+      <div class="rounded-lg border px-4 py-3 text-sm font-semibold {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-emerald-200 bg-emerald-50 text-emerald-700{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if boleta_reciente %}
+  <div class="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="font-black">Boleta lista para imprimir</p>
+        <p class="mt-1">Nro orden: {{ boleta_reciente.numero_orden }} - Codigo orden: {{ boleta_reciente.codigo_orden }}</p>
+      </div>
+      <a href="{% url 'panel:encomienda_boleta' boleta_reciente.id %}" target="_blank" class="inline-flex justify-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-indigo-700">
+        Ver boleta
+      </a>
+    </div>
+  </div>
+{% endif %}
+
+<div class="grid grid-cols-1 xl:grid-cols-[420px,1fr] gap-6">
+  <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div class="mb-5">
+      <p class="text-xs font-bold uppercase tracking-wider text-indigo-500">Agencia</p>
+      <h2 class="text-lg font-bold text-gray-900">Registrar encomienda</h2>
+      <p class="text-sm text-gray-500 mt-1">Al guardar se genera la boleta para imprimir y entregar al cliente.</p>
+    </div>
+
+    <form method="POST" class="space-y-4">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Remitente</label>
+          {{ form.remitente_nombres }}
+          {{ form.remitente_nombres.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">DNI remitente</label>
+          {{ form.remitente_dni }}
+          {{ form.remitente_dni.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono</label>
+          {{ form.remitente_telefono }}
+          {{ form.remitente_telefono.errors }}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destinatario</label>
+          {{ form.destinatario_nombres }}
+          {{ form.destinatario_nombres.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">DNI destinatario</label>
+          {{ form.destinatario_dni }}
+          {{ form.destinatario_dni.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono</label>
+          {{ form.destinatario_telefono }}
+          {{ form.destinatario_telefono.errors }}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Clave de recojo opcional</label>
+          {{ form.clave_recojo }}
+          {{ form.clave_recojo.errors }}
+          <p class="mt-1 text-xs font-semibold text-gray-400">Puedes dejarla vacia para generarla automaticamente. Si la escribes, debe tener 4 digitos numericos.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Origen</label>
+          {{ form.origen }}
+          {{ form.origen.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Destino</label>
+          {{ form.destino }}
+          {{ form.destino.errors }}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
+          {{ form.descripcion }}
+          {{ form.descripcion.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Peso kg</label>
+          {{ form.peso_kg }}
+          {{ form.peso_kg.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Monto S/</label>
+          {{ form.monto }}
+          {{ form.monto.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pago</label>
+          {{ form.condicion_pago }}
+          {{ form.condicion_pago.errors }}
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Metodo</label>
+          {{ form.metodo_pago }}
+          {{ form.metodo_pago.errors }}
+        </div>
+      </div>
+
+      <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700 transition">
+        Registrar encomienda
+      </button>
+    </form>
+  </section>
+
+  <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Envíos registrados</h2>
+          <p class="text-sm text-gray-500">Usa el N° de orden y código de orden para rastreo y pago web.</p>
+        </div>
+        <form method="GET" class="flex flex-col sm:flex-row gap-2">
+          <input name="q" value="{{ q }}" placeholder="Código"
+                 class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-400">
+          <select name="estado" class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-400">
+            <option value="">Todos</option>
+            {% for value, label in estado_choices %}
+              <option value="{{ value }}" {% if estado_filtro == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white">Filtrar</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left">
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Código</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Ruta</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Cliente</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Monto / Pago</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Estado</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Boleta</th>
+            <th class="px-5 py-3 text-xs font-bold uppercase text-gray-500">Actualizar</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for e in encomiendas %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">{{ e.codigo }}</span>
+              <p class="mt-2 text-xs font-bold text-slate-600">{{ e.numero_orden }}</p>
+              <p class="text-xs text-slate-400">Cod. {{ e.codigo_orden }}</p>
+              <p class="text-xs text-gray-400 mt-1">{{ e.creado_en|date:"d/m/Y H:i" }}</p>
+            </td>
+            <td class="px-5 py-3 font-semibold text-gray-800">{{ e.origen }} → {{ e.destino }}</td>
+            <td class="px-5 py-3">
+              <p class="font-medium text-gray-900">{{ e.remitente_nombres }}</p>
+              <p class="text-xs text-gray-400">Para: {{ e.destinatario_nombres }}</p>
+            </td>
+            <td class="px-5 py-3">
+              <p class="font-bold text-gray-800">S/ {{ e.monto }}</p>
+              {% if e.condicion_pago == 'pagado_origen' %}
+              <p class="text-xs font-bold text-emerald-600">Pagado - {{ e.get_metodo_pago_display }}</p>
+              {% elif e.pagado_en %}
+              <p class="text-xs font-bold text-emerald-600">Cobrado al recoger</p>
+              {% else %}
+              <p class="text-xs font-bold text-amber-600">Por cobrar al recoger</p>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{{ e.get_estado_display }}</span>
+            </td>
+            <td class="px-5 py-3">
+              <a href="{% url 'panel:encomienda_boleta' e.id %}" target="_blank" class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700">
+                Ver boleta
+              </a>
+            </td>
+            <td class="px-5 py-3">
+              {% if e.estado == 'entregado' %}
+              <span class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Bloqueado</span>
+              {% elif not e.opciones_estado_panel %}
+              <a href="{% url 'panel:recojo_entrega' %}" class="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100">
+                Recojo / Entrega
+              </a>
+              {% else %}
+              <form method="POST" action="{% url 'panel:encomienda_estado' e.id %}" class="flex gap-2">
+                {% csrf_token %}
+                <select name="estado" class="rounded-lg border border-gray-200 px-2 py-1.5 text-xs">
+                  {% for value, label in e.opciones_estado_panel %}
+                    <option value="{{ value }}" {% if e.estado == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white">OK</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-5 py-10 text-center text-sm text-gray-400">Todavía no hay encomiendas registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% endblock %}

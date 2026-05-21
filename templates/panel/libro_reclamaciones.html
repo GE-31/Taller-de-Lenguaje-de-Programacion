@@ -1,0 +1,163 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Libro de Reclamaciones - Linea Imperial{% endblock %}
+{% block titulo_pagina %}Libro de Reclamaciones{% endblock %}
+
+{% block panel_contenido %}
+
+{% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for message in messages %}
+      <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="rounded-3xl border border-orange-100 bg-white p-5 shadow-sm">
+    <p class="text-xs font-black uppercase tracking-widest text-slate-400">Pendiente</p>
+    <p class="mt-2 text-3xl font-black text-orange-600">{{ total_pendientes }}</p>
+  </div>
+  <div class="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
+    <p class="text-xs font-black uppercase tracking-widest text-slate-400">En revision</p>
+    <p class="mt-2 text-3xl font-black text-blue-600">{{ total_revision }}</p>
+  </div>
+  <div class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
+    <p class="text-xs font-black uppercase tracking-widest text-slate-400">Respondido</p>
+    <p class="mt-2 text-3xl font-black text-emerald-600">{{ total_respondidos }}</p>
+  </div>
+  <div class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+    <p class="text-xs font-black uppercase tracking-widest text-slate-400">Cerrado</p>
+    <p class="mt-2 text-3xl font-black text-slate-700">{{ total_cerrados }}</p>
+  </div>
+</div>
+
+<section class="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+  <div class="border-b border-slate-100 px-5 py-4">
+    <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-orange-500">Solicitudes formales</p>
+        <h2 class="mt-1 text-xl font-black text-slate-950">Reclamos y quejas recibidos</h2>
+        <p class="mt-1 text-sm font-semibold text-slate-500">Gestiona solo el Libro de Reclamaciones, separado de sugerencias o contacto.</p>
+      </div>
+      <form method="GET" class="flex flex-col gap-2 sm:flex-row">
+        <input name="q" value="{{ q }}" placeholder="Codigo, cliente, DNI o correo"
+               class="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100">
+        <select name="estado"
+                class="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100">
+          <option value="">Todos los estados</option>
+          {% for value, label in estado_choices %}
+            <option value="{{ value }}" {% if estado_filtro == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="rounded-2xl bg-slate-950 px-5 py-2 text-sm font-black text-white transition hover:bg-slate-800">
+          Filtrar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 text-left">
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Codigo</th>
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Consumidor</th>
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Servicio</th>
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Detalle</th>
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Estado</th>
+          <th class="px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-500">Actualizar</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for reclamo in reclamos %}
+          <tr class="align-top transition hover:bg-orange-50/40">
+            <td class="px-5 py-4">
+              <span class="rounded-xl bg-orange-50 px-3 py-1 font-mono text-xs font-black text-orange-700 ring-1 ring-orange-100">
+                {{ reclamo.codigo }}
+              </span>
+              <p class="mt-2 text-xs font-semibold text-slate-400">{{ reclamo.creado_en|date:"d/m/Y H:i" }}</p>
+              <p class="mt-1 text-xs font-black uppercase text-slate-500">{{ reclamo.get_tipo_solicitud_display }}</p>
+            </td>
+            <td class="px-5 py-4">
+              <p class="font-black text-slate-900">{{ reclamo.nombres_apellidos }}</p>
+              <p class="text-xs font-semibold text-slate-500">{{ reclamo.documento }} · {{ reclamo.telefono }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ reclamo.email }}</p>
+              <p class="mt-1 max-w-xs text-xs text-slate-400">{{ reclamo.direccion }}</p>
+            </td>
+            <td class="px-5 py-4">
+              <p class="font-black text-slate-800">{{ reclamo.get_tipo_servicio_display }}</p>
+              <p class="mt-1 text-xs font-semibold text-slate-500">Ref: {{ reclamo.numero_referencia|default:"No indicada" }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ reclamo.ruta|default:"Ruta no indicada" }}</p>
+              <p class="mt-1 text-xs text-slate-400">
+                {% if reclamo.fecha_servicio %}{{ reclamo.fecha_servicio|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}
+                {% if reclamo.monto_pagado %} · S/ {{ reclamo.monto_pagado }}{% endif %}
+              </p>
+            </td>
+            <td class="px-5 py-4">
+              <details class="max-w-md">
+                <summary class="cursor-pointer text-sm font-black text-orange-700">Ver detalle</summary>
+                <div class="mt-3 space-y-3 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+                  <div>
+                    <p class="font-black uppercase tracking-widest text-slate-400">Descripcion</p>
+                    <p class="mt-1 whitespace-pre-line">{{ reclamo.descripcion }}</p>
+                  </div>
+                  <div>
+                    <p class="font-black uppercase tracking-widest text-slate-400">Pedido</p>
+                    <p class="mt-1 whitespace-pre-line">{{ reclamo.pedido_consumidor }}</p>
+                  </div>
+                  {% if reclamo.archivo %}
+                    <a href="{{ reclamo.archivo.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex rounded-xl bg-white px-3 py-2 font-black text-orange-700 ring-1 ring-orange-100">
+                      Ver archivo adjunto
+                    </a>
+                  {% endif %}
+                </div>
+              </details>
+            </td>
+            <td class="px-5 py-4">
+              {% if reclamo.estado == 'pendiente' %}
+                <span class="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 ring-1 ring-orange-100">Pendiente</span>
+              {% elif reclamo.estado == 'en_revision' %}
+                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">En revision</span>
+              {% elif reclamo.estado == 'respondido' %}
+                <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">Respondido</span>
+              {% else %}
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">Cerrado</span>
+              {% endif %}
+              {% if reclamo.respuesta_admin %}
+                <p class="mt-3 max-w-xs text-xs text-slate-500">{{ reclamo.respuesta_admin|truncatechars:120 }}</p>
+              {% endif %}
+            </td>
+            <td class="px-5 py-4">
+              <form method="POST" action="{% url 'panel:reclamacion_estado' reclamo.id %}" class="w-64 space-y-2">
+                {% csrf_token %}
+                <select name="estado"
+                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold outline-none focus:border-orange-300">
+                  {% for value, label in estado_choices %}
+                    <option value="{{ value }}" {% if reclamo.estado == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <textarea name="respuesta_admin" rows="3" placeholder="Respuesta o nota interna"
+                          class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold outline-none focus:border-orange-300">{{ reclamo.respuesta_admin }}</textarea>
+                <button class="w-full rounded-xl bg-gradient-to-r from-orange-500 to-red-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-orange-100">
+                  Guardar estado
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="px-5 py-14 text-center text-sm font-semibold text-slate-400">
+              No hay reclamos o quejas formales para mostrar.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}

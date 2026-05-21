@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Acceso Panel — Línea Imperial{% endblock %}
+
+{% block contenido %}
+<div class="min-h-screen flex">
+
+  <!-- Panel izquierdo: imagen completa -->
+  <div class="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
+       style="background-image: url('{% static "img/logo_trabajadores.png" %}'); background-size: cover; background-position: center;">
+
+    <!-- Overlay oscuro para legibilidad -->
+    <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70"></div>
+
+    <!-- Logo -->
+    <div class="relative">
+      <span class="text-white text-xl font-extrabold tracking-widest uppercase drop-shadow-lg">Línea Imperial</span>
+    </div>
+
+    <!-- Texto central -->
+    <div class="relative">
+      <p class="text-white/60 text-xs font-semibold uppercase tracking-[0.25em] mb-4">Portal de trabajadores</p>
+      <h2 class="text-white text-5xl font-black leading-tight drop-shadow-xl">
+        Gestiona<br>tu empresa<br>con eficiencia.
+      </h2>
+      <p class="text-white/75 mt-5 text-base leading-relaxed max-w-xs">
+        Rutas, viajes, boletos y reportes en un solo lugar, al alcance de tu equipo.
+      </p>
+
+      <div class="mt-8 flex items-center gap-3">
+        <div class="h-px flex-1 bg-white/20"></div>
+        <span class="text-white/40 text-xs uppercase tracking-widest">Acceso seguro</span>
+        <div class="h-px flex-1 bg-white/20"></div>
+      </div>
+
+      <!-- Roles -->
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="text-xs font-semibold bg-white/10 backdrop-blur-sm text-white/80 px-3 py-1.5 rounded-full border border-white/15">Agentes</span>
+        <span class="text-xs font-semibold bg-white/10 backdrop-blur-sm text-white/80 px-3 py-1.5 rounded-full border border-white/15">Admin empresa</span>
+        <span class="text-xs font-semibold bg-[#e95c20]/30 backdrop-blur-sm text-orange-200 px-3 py-1.5 rounded-full border border-orange-400/30">Super Admin</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="relative">
+      <p class="text-white/35 text-xs">© 2025 Línea Imperial · Área interna</p>
+    </div>
+  </div>
+
+  <!-- Panel derecho: formulario -->
+  <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+    <div class="w-full max-w-md">
+
+      <!-- Barra superior -->
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-[#e95c20] flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <span class="text-gray-800 text-lg font-bold">Portal de Trabajadores</span>
+        </div>
+        <a href="{% url 'publico:inicio' %}"
+          class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#e95c20]
+                 bg-white border border-gray-200 hover:border-[#e95c20] px-4 py-2 rounded-lg transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Inicio
+        </a>
+      </div>
+
+      <h1 class="text-3xl font-bold text-gray-900">Acceso al panel</h1>
+      <p class="text-gray-500 mt-1 mb-8 text-sm">Ingresa con tu cuenta de trabajador o administrador.</p>
+
+      <!-- Error de rol (cliente intentó entrar) -->
+      {% if error_rol %}
+      <div class="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-200 flex gap-3">
+        <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <p class="text-sm text-amber-800 font-medium">Acceso no autorizado</p>
+          <p class="text-xs text-amber-700 mt-0.5">{{ error_rol }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Errores del formulario -->
+      {% if form.non_field_errors %}
+      <div class="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 flex gap-3">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.75-11.25a.75.75 0 011.5 0v4.5a.75.75 0 01-1.5 0v-4.5zm.75 7.5a.75.75 0 100-1.5.75.75 0 000 1.5z"
+            clip-rule="evenodd"/>
+        </svg>
+        <ul class="text-sm text-red-700">
+          {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <form method="POST" class="space-y-5" novalidate>
+        {% csrf_token %}
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Correo electrónico</label>
+          {{ form.email }}
+          {% if form.email.errors %}
+          <p class="mt-1.5 text-xs text-red-600">{{ form.email.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Contraseña</label>
+          {{ form.password }}
+          {% if form.password.errors %}
+          <p class="mt-1.5 text-xs text-red-600">{{ form.password.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <button type="submit"
+          class="w-full py-3 px-4 bg-[#e95c20] hover:bg-[#d14e18] active:bg-[#b8431a]
+                 text-white font-bold rounded-xl transition-colors duration-150
+                 focus:outline-none focus:ring-2 focus:ring-[#e95c20] focus:ring-offset-2 mt-2">
+          Ingresar al panel
+        </button>
+      </form>
+
+      <div class="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+        <p class="text-xs text-blue-700 text-center">
+          <strong>¿Eres pasajero?</strong>
+          <a href="{% url 'publico:inicio' %}" class="underline font-medium ml-1">
+            Compra tu pasaje aquí →
+          </a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
