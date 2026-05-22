@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boleta encomienda {{ encomienda.codigo }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #e5e7eb;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 24px 12px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .toolbar a, .toolbar button {
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 10px 14px;
+      text-decoration: none;
+    }
+    .toolbar button { background: #111827; color: #fff; }
+    .toolbar a { background: #fff; color: #111827; }
+    .ticket {
+      background: #fff;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, .18);
+      margin: 0 auto;
+      padding: 11px 9px 14px;
+      width: 80mm;
+    }
+    .center { text-align: center; }
+    .empresa {
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+    .sub {
+      font-size: 10px;
+      line-height: 1.25;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+    .titulo {
+      font-size: 13px;
+      font-weight: 900;
+      margin-top: 12px;
+      text-transform: uppercase;
+    }
+    .numero {
+      font-size: 11px;
+      margin-top: 6px;
+    }
+    .estado-pago {
+      border: 2px solid #111;
+      font-size: 12px;
+      font-weight: 900;
+      margin: 10px 0 9px;
+      padding: 7px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .orden-pago {
+      border: 1px solid #111;
+      margin: 0 0 9px;
+      padding: 7px;
+    }
+    .orden-title {
+      font-size: 9px;
+      font-weight: 900;
+      margin-bottom: 5px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .orden-row {
+      display: flex;
+      font-size: 12px;
+      font-weight: 900;
+      justify-content: space-between;
+      line-height: 1.25;
+      margin-top: 3px;
+    }
+    .row {
+      display: grid;
+      font-size: 10px;
+      gap: 4px;
+      grid-template-columns: 31mm 1fr;
+      line-height: 1.2;
+      margin: 3px 0;
+    }
+    .label::after {
+      content: ":";
+      float: right;
+      padding-right: 5px;
+    }
+    .value {
+      font-weight: 700;
+      text-align: right;
+      word-break: break-word;
+    }
+    .value-left {
+      font-weight: 700;
+      text-align: left;
+      word-break: break-word;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 900;
+      margin-top: 9px;
+      text-transform: uppercase;
+    }
+    .codigo {
+      border: 1px dashed #111;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      margin: 8px 0;
+      padding: 8px;
+      text-align: center;
+    }
+    .rule {
+      border: 0;
+      border-top: 1px solid #111;
+      margin: 9px 0 6px;
+    }
+    .total {
+      display: flex;
+      font-size: 14px;
+      font-weight: 900;
+      justify-content: space-between;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+    .note {
+      font-size: 9px;
+      line-height: 1.25;
+      margin-top: 9px;
+      text-align: justify;
+    }
+    .firma {
+      border-top: 1px solid #111;
+      font-size: 9px;
+      font-weight: 800;
+      margin: 22px auto 0;
+      padding-top: 4px;
+      text-align: center;
+      width: 54mm;
+    }
+    @media print {
+      @page { margin: 0; size: 80mm auto; }
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .ticket { box-shadow: none; width: 80mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Imprimir boleta</button>
+    <a href="{% url 'panel:encomiendas' %}">Volver</a>
+  </div>
+
+  <main class="ticket">
+    <div class="center">
+      <div class="empresa">{{ encomienda.empresa.nombre|default:"Linea Imperial" }}</div>
+      <div class="sub">Servicio de transporte de encomiendas</div>
+      <div class="sub">Sede principal: Chiclayo</div>
+      <div class="titulo">Boleta de encomienda</div>
+      <div class="numero">Nro. {{ numero_comprobante }}</div>
+    </div>
+
+    <div class="estado-pago">
+      {% if encomienda.condicion_pago == 'pagado_origen' %}
+        Pagado
+      {% elif encomienda.pagado_en %}
+        Cobrado en destino
+      {% else %}
+        Por cobrar en destino
+      {% endif %}
+    </div>
+
+    <div class="orden-pago">
+      <div class="orden-title">Datos para buscar y pagar</div>
+      <div class="orden-row"><span>Nro orden</span><span>{{ encomienda.numero_orden }}</span></div>
+      <div class="orden-row"><span>Codigo orden</span><span>{{ encomienda.codigo_orden }}</span></div>
+    </div>
+
+    <div class="row"><div class="label">Fecha</div><div class="value">{{ encomienda.creado_en|date:"d/m/Y H:i" }}</div></div>
+    <div class="row"><div class="label">Nro orden</div><div class="value">{{ encomienda.numero_orden }}</div></div>
+    <div class="row"><div class="label">Codigo orden</div><div class="value">{{ encomienda.codigo_orden }}</div></div>
+    <div class="row"><div class="label">Codigo rastreo</div><div class="value">{{ encomienda.codigo }}</div></div>
+    <div class="row"><div class="label">Clave recojo</div><div class="value">{{ encomienda.clave_recojo }}</div></div>
+    <div class="row"><div class="label">Registrado por</div><div class="value">{{ encomienda.registrado_por.nombre_completo|default:"Agencia" }}</div></div>
+
+    <div class="codigo">{{ encomienda.codigo }}</div>
+
+    <hr class="rule">
+    <div class="section-title">Ruta</div>
+    <div class="row"><div class="label">Origen</div><div class="value">{{ encomienda.origen }}</div></div>
+    <div class="row"><div class="label">Destino</div><div class="value">{{ encomienda.destino }}</div></div>
+    <div class="row"><div class="label">Estado envio</div><div class="value">{{ encomienda.get_estado_display }}</div></div>
+
+    <hr class="rule">
+    <div class="section-title">Remitente</div>
+    <div class="row"><div class="label">Nombre</div><div class="value-left">{{ encomienda.remitente_nombres }}</div></div>
+    <div class="row"><div class="label">DNI</div><div class="value">{{ encomienda.remitente_dni }}</div></div>
+    <div class="row"><div class="label">Telefono</div><div class="value">{{ encomienda.remitente_telefono }}</div></div>
+
+    <hr class="rule">
+    <div class="section-title">Destinatario</div>
+    <div class="row"><div class="label">Nombre</div><div class="value-left">{{ encomienda.destinatario_nombres }}</div></div>
+    <div class="row"><div class="label">DNI</div><div class="value">{{ encomienda.destinatario_dni|default:"-" }}</div></div>
+    <div class="row"><div class="label">Telefono</div><div class="value">{{ encomienda.destinatario_telefono }}</div></div>
+
+    <hr class="rule">
+    <div class="section-title">Detalle del envio</div>
+    <div class="row"><div class="label">Descripcion</div><div class="value-left">{{ encomienda.descripcion }}</div></div>
+    <div class="row"><div class="label">Peso</div><div class="value">{{ encomienda.peso_kg }} kg</div></div>
+    <div class="row"><div class="label">Condicion</div><div class="value">{{ encomienda.get_condicion_pago_display }}</div></div>
+    <div class="row"><div class="label">Metodo pago</div><div class="value">{{ encomienda.get_metodo_pago_display|default:"Pago en destino" }}</div></div>
+
+    <div class="total">
+      <span>Total</span>
+      <span>S/ {{ encomienda.monto }}</span>
+    </div>
+
+    <p class="note">
+      Conserve esta boleta. El codigo permite rastrear la encomienda en la web.
+      Tambien puede pagar en /pagalo/web/ usando el numero y codigo de orden.
+      Para la entrega se debe presentar documento de identidad. Si figura por cobrar,
+      el monto se cancela al momento de recoger la encomienda.
+    </p>
+
+    <div class="firma">Firma y sello de agencia</div>
+  </main>
+</body>
+</html>
