@@ -1,0 +1,1552 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}
+  {% if origen and destino %}{{ origen }} → {{ destino }} | Línea Imperial
+  {% else %}Buscar pasajes | Línea Imperial{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .step-active  { background:#e95c20; color:#fff; }
+  .step-inactive{ background:#e0e0e0; color:#888; }
+  .step-line    { flex:1; height:4px; background:#e0e0e0; }
+  .sort-active  { background:#e95c20 !important; color:#fff !important; border-color:#e95c20 !important; }
+  .policy-modal-panel { animation: policyModalIn .2s ease-out; }
+  @keyframes policyModalIn {
+    from { opacity: 0; transform: translateY(14px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @media (hover: hover) and (min-width: 1024px) {
+    .viaje-card .service-options-panel {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top-color: transparent;
+      transform: translateY(-4px);
+      transition: max-height .28s ease, opacity .2s ease, padding .28s ease, transform .28s ease, border-color .2s ease;
+    }
+
+    .viaje-card:hover .service-options-panel,
+    .viaje-card:focus-within .service-options-panel {
+      max-height: 96px;
+      opacity: 1;
+      padding-top: .75rem;
+      padding-bottom: .75rem;
+      border-top-color: #f3f4f6;
+      transform: translateY(0);
+    }
+  }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ═══════════════════════════════════════════════════════════ BARRA BÚSQUEDA -->
+<div class="bg-[#1a2748] py-4 shadow-xl">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Logo -->
+    <a href="{% url 'publico:inicio' %}" class="inline-flex items-center mb-3">
+      <img src="{% static 'img/logo.png' %}" alt="Línea Imperial" class="h-10 w-auto"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span style="display:none" class="font-extrabold text-white text-lg">Línea <span class="text-orange-400">Imperial</span></span>
+    </a>
+
+    <form method="GET" action="{% url 'viajes:buscar' %}" id="form-buscar"
+          class="flex flex-col sm:flex-row items-stretch gap-2">
+
+      <!-- Origen -->
+      <div class="flex-1 bg-white rounded-xl flex items-center gap-3 px-4 py-3 min-w-0">
+        <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 2"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Origen</p>
+          <select name="origen" required
+                  class="w-full text-sm font-semibold text-gray-800 focus:outline-none bg-transparent">
+            <option value="">Saliendo de</option>
+            {% for ciudad in ciudades_activas %}
+              <option value="{{ ciudad }}" {% if origen == ciudad %}selected{% endif %}>{{ ciudad }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Intercambiar -->
+      <button type="button" onclick="intercambiar()"
+              class="hidden sm:flex w-10 h-10 self-center rounded-full bg-white/10 hover:bg-white/20 text-white items-center justify-center transition-colors flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+        </svg>
+      </button>
+
+      <!-- Destino -->
+      <div class="flex-1 bg-white rounded-xl flex items-center gap-3 px-4 py-3 min-w-0">
+        <svg class="w-5 h-5 text-orange-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Destino</p>
+          <select name="destino" required
+                  class="w-full text-sm font-semibold text-gray-800 focus:outline-none bg-transparent">
+            <option value="">Voy a</option>
+            {% for ciudad in ciudades_activas %}
+              <option value="{{ ciudad }}" {% if destino == ciudad %}selected{% endif %}>{{ ciudad }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Fecha de ida -->
+      <div class="flex-1 bg-white rounded-xl flex items-center gap-3 px-4 py-3 min-w-0">
+        <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fecha de ida</p>
+          <input type="date" name="fecha_ida" id="fecha-ida"
+                 value="{{ fecha_sel|date:'Y-m-d' }}" min="{{ hoy|date:'Y-m-d' }}"
+                 class="w-full text-sm font-semibold text-gray-800 focus:outline-none bg-transparent cursor-pointer">
+        </div>
+      </div>
+
+      <!-- Fecha de vuelta (opcional) -->
+      <div class="flex-1 bg-white rounded-xl flex items-center gap-3 px-4 py-3 min-w-0">
+        <svg class="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Fecha de vuelta</p>
+          <input type="date" name="fecha_regreso" id="fecha-vuelta" min="{{ hoy|date:'Y-m-d' }}"
+                 value="{% if fecha_regreso_sel %}{{ fecha_regreso_sel|date:'Y-m-d' }}{% endif %}"
+                 placeholder="Opcional"
+                 class="w-full text-sm font-semibold text-gray-400 focus:outline-none bg-transparent cursor-pointer placeholder-gray-300">
+        </div>
+      </div>
+
+      <!-- Botón Buscar -->
+      <button type="submit"
+              class="bg-[#e95c20] hover:bg-[#d14e18] text-white font-extrabold text-base px-10 py-3 rounded-xl transition-colors flex-shrink-0 shadow-lg shadow-orange-900/30">
+        Buscar
+      </button>
+
+    </form>
+
+    {% comment %}Ciudades anteriores deshabilitadas temporalmente.
+    {# select activo usa ciudades_activas #}
+      <option value="Chiclayo"><option value="Lima"><option value="Jaén">
+      <option value="Cajamarca"><option value="Chachapoyas"><option value="Tarapoto">
+      <option value="Piura"><option value="Trujillo"><option value="Lambayeque">
+    {% endcomment %}
+  </div>
+</div>
+
+{% if origen and destino %}
+
+<!-- ═══════════════════════════════════════════════════════ PASOS IDA/PAGO/CONFIRMACIÓN -->
+<div class="bg-white border-b border-gray-100 py-3">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-0 max-w-lg mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+        <span class="text-sm font-bold text-orange-600 whitespace-nowrap">Ida</span>
+      </div>
+      <div class="step-line mx-3"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-inactive flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+        <span class="text-sm font-semibold text-gray-400 whitespace-nowrap">Pago</span>
+      </div>
+      <div class="step-line mx-3"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-inactive flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+        <span class="text-sm font-semibold text-gray-400 whitespace-nowrap">Confirmación</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PESTAÑAS DE FECHAS -->
+<div class="bg-white border-b border-gray-100 overflow-x-auto">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex">
+      {% for p in pestanas %}
+      <a href="?origen={{ origen }}&destino={{ destino }}&fecha_ida={{ p.fecha|date:'Y-m-d' }}{% if fecha_regreso_sel %}&fecha_regreso={{ fecha_regreso_sel|date:'Y-m-d' }}{% endif %}"
+         class="flex-shrink-0 flex flex-col items-center justify-center px-5 py-3 border-b-2 text-xs transition-all min-w-[90px]
+                {% if p.activa %}border-orange-500 bg-orange-50{% else %}border-transparent hover:bg-gray-50{% endif %}">
+        <span class="font-semibold uppercase text-[11px] {% if p.activa %}text-orange-600{% else %}text-gray-500{% endif %}">
+          {{ p.fecha|date:"D d M." }}
+        </span>
+        {% if p.precio_min %}
+          <span class="font-extrabold text-sm mt-0.5 {% if p.activa %}text-orange-600{% else %}text-green-600{% endif %}">
+            S/ {{ p.precio_min }}
+          </span>
+        {% else %}
+          <span class="text-gray-300 text-sm mt-0.5">—</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ CONTENIDO PRINCIPAL -->
+<div class="bg-gray-50 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="flex gap-6">
+
+      <!-- ══════════════════════════════════════════════ FILTROS -->
+      <aside class="hidden lg:block w-60 flex-shrink-0">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <h3 class="font-extrabold text-gray-800 text-base mb-5">Filtros</h3>
+
+          <!-- Hora de salida -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+              <p class="font-bold text-gray-700 text-sm">Hora de Salida</p>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+              </svg>
+            </div>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarTurno('madrugada',this)">
+              <span class="text-sm text-gray-600 flex items-center gap-1.5">
+                <span>🌙</span> Antes de las 6 AM
+              </span>
+            </label>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarTurno('manana',this)">
+              <span class="text-sm text-gray-600 flex items-center gap-1.5">
+                <span>🌅</span> 6 AM a 12 PM
+              </span>
+            </label>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarTurno('tarde',this)">
+              <span class="text-sm text-gray-600 flex items-center gap-1.5">
+                <span>☀️</span> 12 PM a 18 PM
+              </span>
+            </label>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarTurno('noche',this)">
+              <span class="text-sm text-gray-600 flex items-center gap-1.5">
+                <span>🌃</span> Después de las 18 PM
+              </span>
+            </label>
+          </div>
+
+          <!-- Punto de embarque -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+              <p class="font-bold text-gray-700 text-sm">Punto de embarque</p>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+              </svg>
+            </div>
+            <p class="text-sm text-gray-500">{{ origen }}</p>
+          </div>
+
+          <!-- Tipos de asiento -->
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="font-bold text-gray-700 text-sm">Tipos de asiento</p>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+              </svg>
+            </div>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarServicio('economico',this)">
+              <span class="text-sm text-gray-600">Económico</span>
+            </label>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarServicio('bus_cama',this)">
+              <span class="text-sm text-gray-600">Bus Cama</span>
+            </label>
+            <label class="flex items-center gap-2.5 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-orange-500" onchange="filtrarServicio('bus_cama_vip',this)">
+              <span class="text-sm text-gray-600">Bus Cama VIP</span>
+            </label>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ══════════════════════════════════════════════ RESULTADOS -->
+      <div class="flex-1 min-w-0">
+
+        {% if error_busqueda %}
+        <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center">
+          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+            <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16a2 2 0 001.73 3z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-black text-gray-900">Revisa tu busqueda</h3>
+          <p class="mt-2 text-sm font-semibold text-red-600">{{ error_busqueda }}</p>
+        </div>
+
+        {% elif viajes %}
+
+        <!-- Barra de ordenamiento -->
+        <div class="bg-[#e95c20] rounded-2xl flex overflow-hidden mb-5 shadow-lg shadow-orange-200">
+          <button onclick="ordenar('hora', this)"
+                  class="sort-btn flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white sort-active">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Horario de salida ↓
+          </button>
+          <button onclick="ordenar('precio', this)"
+                  class="sort-btn flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white/70 hover:text-white transition-colors border-l border-orange-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Mejor Precio
+          </button>
+          <button onclick="ordenar('rapido', this)"
+                  class="sort-btn flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white/70 hover:text-white transition-colors border-l border-orange-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Más Rápido
+          </button>
+        </div>
+
+        <!-- Contador -->
+        <p class="text-xs text-gray-400 mb-3 px-1">
+          {{ viajes|length }} servicio{% if viajes|length != 1 %}s{% endif %} disponible{% if viajes|length != 1 %}s{% endif %}
+          para el {{ fecha_sel|date:"d/m/Y" }}
+        </p>
+
+        <!-- Lista de viajes -->
+        <div id="lista-viajes" class="space-y-3">
+          {% for item in viajes %}
+          {% with v=item.obj hora=item.obj.fecha_salida.hour %}
+          <div class="viaje-card bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-orange-200 transition-all overflow-hidden"
+               data-turno="{% if hora < 6 %}madrugada{% elif hora < 12 %}manana{% elif hora < 18 %}tarde{% else %}noche{% endif %}"
+               data-servicio="{{ v.bus.tipo_servicio }}"
+               data-hora="{{ v.fecha_salida|date:'H:i' }}"
+               data-precio="{{ v.precio }}"
+               data-duracion="{{ v.ruta.duracion_estimada.seconds }}"
+               data-empresa="{{ v.bus.empresa }}"
+               data-tipo="{{ v.bus.get_tipo_servicio_display }}"
+               data-salida="{{ v.fecha_salida|date:'H:i' }}"
+               data-llegada="{{ v.fecha_llegada_estimada|date:'H:i' }}"
+               data-fecha="{{ v.fecha_salida|date:'D, d M Y' }}"
+               data-origen="{{ origen }}"
+               data-destino="{{ destino }}"
+               data-bus-image="{% static item.bus_image %}">
+
+            <!-- Fila principal -->
+            <div class="flex flex-col lg:flex-row lg:items-center gap-4 p-4 sm:p-5">
+
+              <!-- Logo empresa -->
+              <div class="w-full lg:w-28 flex-shrink-0 lg:pr-5 lg:border-r border-gray-100 flex items-center justify-center">
+                <img src="{% static 'img/logo.png' %}" alt="{{ v.bus.empresa }}"
+                     class="h-10 w-auto object-contain mx-auto"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <p class="text-xs font-bold text-gray-700 text-center hidden">{{ v.bus.empresa }}</p>
+              </div>
+
+              <!-- Horario + duración -->
+              <!-- Foto del bus -->
+              <!-- Horario y duracion -->
+              <div class="flex-1 min-w-0 lg:px-5 lg:border-r border-gray-100">
+                <div class="flex items-center gap-3 sm:gap-6">
+                  <div class="text-center">
+                    <p class="text-[10px] text-gray-400 font-semibold uppercase">Salida</p>
+                    <p class="text-xl sm:text-2xl font-black text-gray-900">{{ v.fecha_salida|date:"H:i" }}</p>
+                    <p class="text-[10px] text-gray-400">{{ v.fecha_salida|date:"D, d/m" }}</p>
+                  </div>
+                  <div class="flex flex-col items-center flex-1">
+                    <div class="flex items-center w-full gap-1">
+                      <div class="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0"></div>
+                      <div class="flex-1 border-t-2 border-dashed border-gray-200"></div>
+                      <svg class="w-4 h-4 text-orange-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                      </svg>
+                    </div>
+                    <div class="flex items-center gap-1 mt-1">
+                      <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span class="text-[11px] text-gray-500 font-medium">{{ v.ruta.duracion_estimada }}</span>
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-[10px] text-gray-400 font-semibold uppercase">Llegada</p>
+                    <p class="text-xl sm:text-2xl font-black text-gray-900">{{ v.fecha_llegada_estimada|date:"H:i" }}</p>
+                    <p class="text-[10px] text-gray-400">{{ v.fecha_llegada_estimada|date:"D, d/m" }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tipo de servicio -->
+              <div class="hidden sm:flex flex-col items-center justify-center lg:px-5 lg:border-r border-gray-100 w-full lg:w-36 flex-shrink-0">
+                <svg class="w-7 h-7 text-gray-400 mb-1" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8 17H4a2 2 0 01-2-2V6a2 2 0 012-2h16a2 2 0 012 2v9a2 2 0 01-2 2h-4m-8 0v2m0-2h8m0 0v2"/>
+                </svg>
+                <p class="text-xs font-bold text-gray-700 text-center">{{ v.bus.get_tipo_servicio_display }}</p>
+                {% if v.asientos_disponibles > 0 %}
+                <p class="text-[10px] text-green-600 font-semibold mt-0.5">{{ v.asientos_disponibles }} libres</p>
+                {% else %}
+                <p class="text-[10px] text-red-500 font-semibold mt-0.5">Agotado</p>
+                {% endif %}
+              </div>
+
+              <!-- Precio + botón -->
+              <div class="flex-shrink-0 lg:pl-5 text-right flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-3">
+                <div>
+                  {% if v.promo %}
+                  <span class="inline-block bg-orange-100 text-orange-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide mb-1">PROMO -{{ v.promo.porcentaje_descuento }}%</span>
+                  <p class="text-[10px] text-gray-400 line-through leading-none">S/{{ v.precio }}</p>
+                  <p class="text-2xl sm:text-3xl font-black text-[#e95c20] leading-none">S/{{ v.promo.precio_promocional }}</p>
+                  {% else %}
+                  <p class="text-[10px] text-gray-400 font-semibold">Desde</p>
+                  <p class="text-2xl sm:text-3xl font-black text-[#e95c20] leading-none">S/{{ v.precio }}</p>
+                  {% endif %}
+                </div>
+                {% if v.asientos_disponibles > 0 %}
+                <button type="button"
+                        onclick="abrirAsientos(this)"
+                        data-viaje-id="{{ v.id }}"
+                        data-precio="{{ v.precio }}"
+                        data-promo-id="{% if v.promo %}{{ v.promo.id }}{% endif %}"
+                        data-precio-promo="{% if v.promo %}{{ v.promo.precio_promocional }}{% endif %}"
+                        data-origen="{{ origen }}"
+                        data-destino="{{ destino }}"
+                        data-salida="{{ v.fecha_salida|date:'H:i' }}"
+                        data-llegada="{{ v.fecha_llegada_estimada|date:'H:i' }}"
+                        data-empresa="{{ v.bus.empresa }}"
+                        data-tipo="{{ v.bus.get_tipo_servicio_display }}"
+                        data-doble-piso="{% if v.bus.tipo_servicio != 'bus_cama_vip' %}true{% else %}false{% endif %}"
+                        data-fecha="{{ v.fecha_salida|date:'D., d M. Y' }}"
+                        class="bg-[#e95c20] hover:bg-[#d14e18] text-white font-extrabold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-md shadow-orange-200 whitespace-nowrap">
+                  COMPRAR
+                </button>
+                {% else %}
+                <button disabled class="bg-gray-200 text-gray-400 font-extrabold text-sm px-6 py-2.5 rounded-xl cursor-not-allowed whitespace-nowrap">
+                  AGOTADO
+                </button>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Fila secundaria: empresa + duración + amenidades -->
+            <div class="flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 flex-wrap gap-2">
+              <div class="flex items-center gap-4">
+                <span class="text-xs font-semibold text-gray-500">{{ v.bus.empresa }}</span>
+                <span class="flex items-center gap-1 text-xs text-gray-400">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  {{ v.ruta.duracion_estimada }} horas
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                {% for am in item.amenidades %}
+                <span class="flex items-center gap-1 text-[11px] text-gray-500">
+                  {% if 'WiFi' in am %}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                  </svg>
+                  {% elif 'Aire' in am %}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2"/>
+                  </svg>
+                  {% elif 'Streaming' in am %}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                  {% elif 'USB' in am %}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v10m0 0l-2-2m2 2l2-2M6 17a3 3 0 106 0v-2a3 3 0 00-3-3H6v5z"/>
+                  </svg>
+                  {% else %}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 3l14 9-14 9V3z"/>
+                  </svg>
+                  {% endif %}
+                  {{ am }}
+                </span>
+                {% endfor %}
+                <button class="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 hover:border-orange-400 hover:text-orange-500 transition-colors">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Opciones inferiores del servicio -->
+            <div class="service-options-panel border-t border-gray-100 bg-white px-4 py-3">
+              <div class="flex items-center gap-0 overflow-x-auto pb-1">
+                <button type="button"
+                        onclick="openTripDetailsModal(this, '{{ v.id }}', 'why')"
+                        data-tooltip-title="&iquest;Por qu&eacute; reservar?"
+                        data-tooltip-text="Conoce los beneficios principales de este servicio, horario, ruta y disponibilidad antes de comprar."
+                        class="service-option-tip inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-full bg-indigo-50 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-100 transition-colors">
+                  <span class="text-sm">?</span>
+                  <span>&iquest;Por qu&eacute; reservar?</span>
+                </button>
+
+                <button type="button"
+                        onclick="openTripDetailsModal(this, '{{ v.id }}', 'boarding')"
+                        data-tooltip-title="Embarque / bajada"
+                        data-tooltip-text="Revisa el punto de embarque, el punto de bajada y las indicaciones para llegar con anticipaci&oacute;n."
+                        class="service-option-tip inline-flex flex-shrink-0 items-center justify-center gap-1.5 border-l border-gray-200 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-6.1 7-12A7 7 0 105 9c0 5.9 7 12 7 12z"/>
+                    <circle cx="12" cy="9" r="2.5"/>
+                  </svg>
+                  <span>Embarque / bajada</span>
+                </button>
+
+                <button type="button"
+                        onclick="openTripDetailsModal(this, '{{ v.id }}', 'reviews')"
+                        data-tooltip-title="Calificaciones y rese&ntilde;as"
+                        data-tooltip-text="Consulta la calificaci&oacute;n referencial del servicio y comentarios de pasajeros."
+                        class="service-option-tip inline-flex flex-shrink-0 items-center justify-center gap-1.5 border-l border-gray-200 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <span class="text-amber-400">★</span>
+                  <span>Rese&ntilde;as</span>
+                </button>
+
+                <button type="button"
+                        onclick="openTripDetailsModal(this, '{{ v.id }}', 'photos')"
+                        data-tooltip-title="Fotos del bus"
+                        data-tooltip-text="Mira la foto asignada a este servicio antes de seleccionar tus asientos."
+                        class="service-option-tip inline-flex flex-shrink-0 items-center justify-center gap-1.5 border-l border-gray-200 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-colors">
+                  <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7a2 2 0 012-2h2l1.5-2h5L16 5h2a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                  </svg>
+                  <span>Fotos del bus</span>
+                </button>
+
+                <div class="group relative flex-shrink-0 border-l border-gray-200">
+                  <button type="button"
+                          onclick="openTripDetailsModal(this, '{{ v.id }}', 'cancel')"
+                          data-tooltip-title="Pol&iacute;tica de cancelaci&oacute;n"
+                          data-tooltip-text="Cambios y devoluciones dependen del horario de salida y de las condiciones internas de la empresa."
+                          class="service-option-tip inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 text-sm font-black text-red-600 hover:bg-red-50 transition-colors">
+                    <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>Cancelaci&oacute;n</span>
+                  </button>
+                </div>
+
+                <div class="group relative flex-shrink-0 border-l border-gray-200">
+                  <button type="button"
+                          onclick="openTripDetailsModal(this, '{{ v.id }}', 'policies')"
+                          data-tooltip-title="Otras pol&iacute;ticas"
+                          data-tooltip-text="Incluye equipaje, menores, mascotas y reglas de embarque antes del viaje."
+                          class="service-option-tip inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M8 4h8l3 3v13H5V4h3z"/>
+                    </svg>
+                    <span>Otras pol&iacute;ticas</span>
+                  </button>
+                </div>
+
+                <div class="group relative flex-shrink-0 border-l border-gray-200">
+                  <button type="button"
+                          onclick="openTripDetailsModal(this, '{{ v.id }}', 'services')"
+                          data-tooltip-title="Servicios del bus"
+                          data-tooltip-text="Revisa beneficios como WiFi, aire acondicionado, asientos reclinables, ba&ntilde;o y atenci&oacute;n a bordo."
+                          class="service-option-tip inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M7 17h10"/>
+                    </svg>
+                    <span>Servicios</span>
+                  </button>
+                </div>
+
+                <button type="button"
+                        onclick="openTripDetailsModal(this, '{{ v.id }}', 'why')"
+                        class="ml-4 flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white text-gray-900 shadow-xl ring-1 ring-gray-100 hover:bg-gray-50 transition-colors"
+                        aria-label="Ver detalle del servicio">
+                  <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <template id="why-bus-{{ v.id }}">
+              <div class="space-y-4 text-gray-600">
+                <p>Este servicio conecta <strong>{{ origen }}</strong> con <strong>{{ destino }}</strong> en un bus <strong>{{ v.bus.get_tipo_servicio_display }}</strong>, con salida a las <strong>{{ v.fecha_salida|date:"H:i" }}</strong> y llegada estimada a las <strong>{{ v.fecha_llegada_estimada|date:"H:i" }}</strong>.</p>
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-2xl bg-indigo-50 p-4">
+                    <p class="text-sm font-black text-indigo-800">Viaje directo</p>
+                    <p class="mt-1 text-xs leading-5">Ruta programada y tiempo estimado visible antes de comprar.</p>
+                  </div>
+                  <div class="rounded-2xl bg-orange-50 p-4">
+                    <p class="text-sm font-black text-orange-800">Asientos disponibles</p>
+                    <p class="mt-1 text-xs leading-5">{{ v.asientos_disponibles }} asientos libres para seleccionar en el mapa.</p>
+                  </div>
+                  <div class="rounded-2xl bg-emerald-50 p-4">
+                    <p class="text-sm font-black text-emerald-800">Compra clara</p>
+                    <p class="mt-1 text-xs leading-5">Precio, horario, empresa y servicio se muestran antes del pago.</p>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template id="boarding-bus-{{ v.id }}">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                  <p class="text-xs font-black uppercase tracking-widest text-indigo-600">Punto de embarque</p>
+                  <h4 class="mt-2 text-lg font-black text-gray-900">{{ origen }}</h4>
+                  <p class="mt-3 text-sm leading-6 text-gray-600">{{ item.embarque|linebreaksbr }}</p>
+                </div>
+                <div class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                  <p class="text-xs font-black uppercase tracking-widest text-red-600">Punto de bajada</p>
+                  <h4 class="mt-2 text-lg font-black text-gray-900">{{ destino }}</h4>
+                  <p class="mt-3 text-sm leading-6 text-gray-600">{{ item.desembarque|linebreaksbr }}</p>
+                </div>
+              </div>
+            </template>
+
+            <template id="reviews-bus-{{ v.id }}">
+              <div class="space-y-5">
+                <div class="flex flex-col gap-3 rounded-2xl bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-4xl font-black text-gray-900">4.7</p>
+                    <p class="mt-1 text-sm font-bold text-amber-600">★★★★★</p>
+                  </div>
+                  <p class="max-w-lg text-sm leading-6 text-gray-600">Calificaci&oacute;n referencial del servicio {{ v.bus.get_tipo_servicio_display }} en la ruta {{ origen }} - {{ destino }}.</p>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-2xl border border-gray-100 p-4 text-sm text-gray-600">&ldquo;Salida puntual y bus limpio.&rdquo;</div>
+                  <div class="rounded-2xl border border-gray-100 p-4 text-sm text-gray-600">&ldquo;Buena atenci&oacute;n y asientos c&oacute;modos.&rdquo;</div>
+                  <div class="rounded-2xl border border-gray-100 p-4 text-sm text-gray-600">&ldquo;Compra r&aacute;pida y sin complicaciones.&rdquo;</div>
+                </div>
+              </div>
+            </template>
+
+            <template id="cancel-bus-{{ v.id }}">
+              <div class="prose prose-sm max-w-none text-gray-600">
+                <p>Este servicio puede estar sujeto a cambios, reprogramaciones o cancelaciones seg&uacute;n las condiciones de la empresa de transporte. El pasajero debe revisar las condiciones antes de finalizar la compra. En caso de solicitar una cancelaci&oacute;n o reprogramaci&oacute;n, deber&aacute; comunicarse con la empresa dentro del tiempo permitido y presentar su boleto o comprobante de compra. Las devoluciones o cambios depender&aacute;n de las pol&iacute;ticas internas de la empresa y del horario de salida del bus.</p>
+              </div>
+            </template>
+
+            <template id="other-policies-bus-{{ v.id }}">
+              <div class="space-y-5 text-sm leading-6 text-gray-600">
+                <div>
+                  <h4 class="font-black text-gray-900">Pol&iacute;tica de equipaje:</h4>
+                  <p>Los pasajeros pueden llevar un bolso de mano o bolso de hombro y equipaje principal con un peso m&aacute;ximo de 20 kilos. Cualquier peso adicional deber&aacute; ser pagado por el pasajero y entregado al personal de la taquilla o agencia. No est&aacute; permitido llevar art&iacute;culos restringidos dentro del bus, como objetos afilados, inflamables, explosivos o productos que puedan poner en riesgo la seguridad de los pasajeros.</p>
+                </div>
+                <div>
+                  <h4 class="font-black text-gray-900">Pol&iacute;tica de menores:</h4>
+                  <p>Los ni&ntilde;os mayores de 5 a&ntilde;os deben comprar un boleto individual y ocupar un asiento. Los menores de 17 a&ntilde;os no podr&aacute;n viajar sin la compa&ntilde;&iacute;a de un adulto responsable. Los j&oacute;venes de 18 a&ntilde;os en adelante podr&aacute;n viajar solos presentando los documentos de identificaci&oacute;n necesarios. En caso de menores que viajen con autorizaci&oacute;n especial, deber&aacute;n presentar copia de DNI, partida de nacimiento y permiso notarial de los padres o apoderados. Los menores no pueden viajar en asientos panor&aacute;micos.</p>
+                </div>
+                <div>
+                  <h4 class="font-black text-gray-900">Pol&iacute;tica de mascotas:</h4>
+                  <p>Las mascotas est&aacute;n permitidas seg&uacute;n las condiciones de la empresa. Solo se permite una mascota domesticada por pasajero o por reserva, siempre que cumpla con las normas de seguridad, higiene y transporte establecidas. La mascota debe viajar en un transportador adecuado y no debe incomodar ni poner en riesgo a los dem&aacute;s pasajeros.</p>
+                </div>
+                <div>
+                  <h4 class="font-black text-gray-900">Pol&iacute;tica de embarque:</h4>
+                  <p>La empresa de transporte no est&aacute; obligada a esperar m&aacute;s all&aacute; de la hora de salida programada del servicio. Se recomienda al pasajero llegar con anticipaci&oacute;n al punto de embarque para evitar inconvenientes. El pasajero debe presentar su boleto y documento de identidad antes de abordar.</p>
+                </div>
+              </div>
+            </template>
+
+            <template id="services-bus-{{ v.id }}">
+              <div class="space-y-5 text-gray-600">
+                <p>Este servicio puede incluir los siguientes beneficios, seg&uacute;n el tipo de bus y destino seleccionado:</p>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Mantas</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Puerto USB para cargador</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Pel&iacute;cula</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Pantallas individuales</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Calefacci&oacute;n</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Aire acondicionado</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">WiFi</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Asientos reclinables</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Ba&ntilde;o</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Luz de lectura</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Reposapi&eacute;s</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Cargador el&eacute;ctrico</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">M&uacute;sica o entretenimiento a bordo</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">GPS</span>
+                  <span class="rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold">Atenci&oacute;n a bordo</span>
+                </div>
+                {% if item.amenidades %}
+                <div class="rounded-2xl bg-indigo-50 p-4">
+                  <p class="text-sm font-black text-indigo-800">Incluido en este servicio</p>
+                  <p class="mt-1 text-sm text-indigo-700">{{ item.amenidades|join:", " }}</p>
+                </div>
+                {% endif %}
+              </div>
+            </template>
+
+          </div>
+          {% endwith %}
+          {% endfor %}
+        </div>
+
+        {% if fecha_regreso_sel %}
+        <section class="mt-8 rounded-3xl border border-orange-100 bg-white p-5 shadow-sm">
+          <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p class="text-xs font-black uppercase tracking-widest text-orange-500">Regreso opcional</p>
+              <h3 class="text-xl font-black text-gray-900">{{ destino }} -> {{ origen }}</h3>
+              <p class="text-sm font-semibold text-gray-500">Servicios para el {{ fecha_regreso_sel|date:"d/m/Y" }}</p>
+            </div>
+          </div>
+
+          {% if viajes_regreso %}
+            <div class="space-y-3">
+              {% for item in viajes_regreso %}
+              {% with v=item.obj %}
+              <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p class="text-xs font-black uppercase tracking-widest text-gray-400">Salida</p>
+                    <p class="text-2xl font-black text-gray-950">{{ v.fecha_salida|date:"H:i" }} <span class="text-sm font-bold text-gray-400">a {{ v.fecha_llegada_estimada|date:"H:i" }}</span></p>
+                    <p class="mt-1 text-sm font-semibold text-gray-600">Bus {{ v.bus.placa }} - {{ v.bus.get_tipo_servicio_display }} - {{ v.asientos_disponibles }} libres</p>
+                  </div>
+                  <div class="flex items-center justify-between gap-4 lg:justify-end">
+                    <p class="text-2xl font-black text-orange-600">S/{{ v.precio }}</p>
+                    {% if v.asientos_disponibles > 0 %}
+                    <button type="button"
+                            onclick="abrirAsientos(this)"
+                            data-viaje-id="{{ v.id }}"
+                            data-precio="{{ v.precio }}"
+                            data-promo-id="{% if item.promo %}{{ item.promo.id }}{% endif %}"
+                            data-precio-promo="{% if item.promo %}{{ item.promo.precio_promocional }}{% endif %}"
+                            data-origen="{{ destino }}"
+                            data-destino="{{ origen }}"
+                            data-salida="{{ v.fecha_salida|date:'H:i' }}"
+                            data-llegada="{{ v.fecha_llegada_estimada|date:'H:i' }}"
+                            data-empresa="{{ v.bus.empresa }}"
+                            data-tipo="{{ v.bus.get_tipo_servicio_display }}"
+                            data-doble-piso="{% if v.bus.tipo_servicio != 'bus_cama_vip' %}true{% else %}false{% endif %}"
+                            data-fecha="{{ v.fecha_salida|date:'D., d M. Y' }}"
+                            class="rounded-xl bg-[#e95c20] px-6 py-2.5 text-sm font-extrabold text-white shadow-md shadow-orange-200 transition-colors hover:bg-[#d14e18]">
+                      COMPRAR REGRESO
+                    </button>
+                    {% else %}
+                    <button disabled class="rounded-xl bg-gray-200 px-6 py-2.5 text-sm font-extrabold text-gray-400">AGOTADO</button>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              {% endwith %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="rounded-2xl border border-dashed border-orange-200 bg-orange-50 p-5 text-sm font-bold text-orange-700">
+              No hay pasaje de regreso para esa fecha o la ruta no esta disponible.
+            </div>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        {% elif sin_resultados %}
+        <!-- Sin resultados -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+          <div class="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-gray-800 text-lg mb-1">No hay pasajes disponibles</h3>
+          <p class="text-gray-500 text-sm">No hay pasaje de <strong>{{ origen }}</strong> a <strong>{{ destino }}</strong> o no tenemos esa ruta disponible.</p>
+          <p class="text-gray-400 text-xs mt-2">Nuestra sede principal es Chiclayo. Revisa una ruta que salga o llegue a Chiclayo.</p>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- Estado inicial sin búsqueda -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+  <div class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+    <svg class="w-10 h-10 text-orange-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+  </div>
+  <h2 class="text-xl font-bold text-gray-700 mb-1">Ingresa tu ruta para buscar</h2>
+  <p class="text-gray-400 text-sm">Completa origen, destino y fecha en el formulario de arriba.</p>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════ MODAL SELECCIÓN DE ASIENTOS -->
+<!-- Modal de politicas e informacion -->
+<div id="policy-modal" class="fixed inset-0 z-[220] hidden" role="dialog" aria-modal="true" aria-labelledby="policy-modal-title">
+  <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick="closePolicyModal()"></div>
+  <div class="policy-modal-panel absolute inset-x-4 top-8 mx-auto flex max-h-[88vh] max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:top-1/2 sm:-translate-y-1/2">
+    <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-5 sm:px-7">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-indigo-500">Informaci&oacute;n del servicio</p>
+        <h3 id="policy-modal-title" class="mt-1 text-2xl font-black text-gray-900"></h3>
+      </div>
+      <button type="button" onclick="closePolicyModal()" aria-label="Cerrar"
+              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-colors">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div id="policy-modal-body" class="overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"></div>
+    <div class="border-t border-gray-100 bg-gray-50 px-5 py-4 text-right sm:px-7">
+      <button type="button" onclick="closePolicyModal()"
+              class="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
+        Entendido
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de fotos del bus -->
+<div id="bus-photos-modal" class="fixed inset-0 z-[230] hidden" role="dialog" aria-modal="true" aria-labelledby="bus-photos-title">
+  <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" onclick="closeBusPhotosModal()"></div>
+  <div class="policy-modal-panel absolute inset-x-4 top-8 mx-auto flex max-h-[88vh] max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:top-1/2 sm:-translate-y-1/2">
+    <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-5 sm:px-7">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-indigo-500">Galer&iacute;a</p>
+        <h3 id="bus-photos-title" class="mt-1 text-2xl font-black text-gray-900">Fotos del bus</h3>
+      </div>
+      <button type="button" onclick="closeBusPhotosModal()" aria-label="Cerrar"
+              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-colors">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div id="bus-photos-grid" class="grid gap-4 overflow-y-auto p-5 sm:grid-cols-2 sm:p-7"></div>
+    <div class="border-t border-gray-100 bg-gray-50 px-5 py-4 text-right sm:px-7">
+      <button type="button" onclick="closeBusPhotosModal()"
+              class="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
+        Entendido
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-asientos" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="cerrarModal()"></div>
+
+  <div class="absolute inset-3 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-h-[92vh] w-full max-w-4xl bg-white rounded-[32px] shadow-[0_26px_60px_rgba(15,23,42,0.25)] flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <div class="bg-slate-900 text-white px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="space-y-2">
+        <p id="m-ruta" class="font-black text-xl leading-tight"></p>
+        <p class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+          <span id="m-empresa" class="font-semibold"></span>
+          <span class="opacity-50">·</span>
+          <span id="m-tipo"></span>
+          <span class="opacity-50">·</span>
+          <span id="m-horario" class="text-slate-300"></span>
+        </p>
+      </div>
+      <div class="flex items-center gap-3 justify-between sm:justify-end">
+        <div class="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm text-orange-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span id="m-timer" class="font-medium">10:00</span>
+        </div>
+        <button onclick="cerrarModal()" aria-label="Cerrar"
+                class="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs + leyenda -->
+    <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;flex-shrink:0">
+      <!-- Pill tabs -->
+      <div style="display:inline-flex;background:#e5e7eb;padding:4px;border-radius:99px;gap:3px">
+        <button onclick="cambiarPiso(1,this)" id="tab1" class="tab-piso tab-on">Piso #1</button>
+        <button onclick="cambiarPiso(2,this)" id="tab2" class="tab-piso tab-off">Piso #2</button>
+      </div>
+      <!-- Leyenda con círculos -->
+      <div style="display:flex;align-items:center;gap:14px;font-size:11px;font-weight:600;color:#4b5563;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px">
+          <span style="width:13px;height:13px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>Libre
+        </span>
+        <span style="display:flex;align-items:center;gap:5px">
+          <span style="width:13px;height:13px;border-radius:50%;background:#fbbf24;display:inline-block;flex-shrink:0"></span>Reservado
+        </span>
+        <span style="display:flex;align-items:center;gap:5px">
+          <span style="width:13px;height:13px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>Ocupado
+        </span>
+        <span style="display:flex;align-items:center;gap:5px">
+          <span style="width:13px;height:13px;border-radius:50%;background:#e95c20;display:inline-block;flex-shrink:0"></span>Tu selección
+        </span>
+      </div>
+    </div>
+
+    <!-- Área del bus -->
+    <div style="flex:1;overflow:hidden;padding:14px 18px;display:flex;flex-direction:column">
+
+      <!-- Cuerpo del bus con frente, asientos y baños -->
+      <div style="flex:1;display:flex;overflow:hidden;border:2px solid #334155;border-radius:24px;min-height:210px">
+
+        <!-- FRENTE DEL BUS (izquierda) — conductor, puerta, escalera -->
+        <div style="flex-shrink:0;width:58px;background:#1e293b;border-right:2px solid #334155;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 6px">
+
+          <!-- Conductor -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">
+              <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="2.5" fill="rgba(255,255,255,.8)" stroke="none"/>
+                <path stroke-linecap="round" d="M4.5 12h5M14.5 12h5M12 4.5v5M12 14.5v5"/>
+              </svg>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Chófer</span>
+          </div>
+
+          <!-- Puerta -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:16px;height:24px;border:2px dashed rgba(255,255,255,.3);border-radius:3px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+              <div style="width:1.5px;height:14px;background:rgba(255,255,255,.2);border-radius:1px"></div>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Puerta</span>
+          </div>
+
+          <!-- Escalera -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:30px;height:30px;border-radius:8px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" fill="none" stroke="rgba(251,191,36,.8)" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 20h4v-4h4v-4h4v-4h4V4"/>
+              </svg>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;text-align:center">Escalera</span>
+          </div>
+        </div>
+
+        <!-- ZONA DE ASIENTOS (scrollable) -->
+        <div style="flex:1;overflow:auto;background:rgba(248,250,252,.7);padding:16px 14px">
+          <div id="mapa-asientos" style="display:inline-flex;flex-direction:column;gap:4px;min-height:150px;min-width:200px">
+            <div style="display:flex;align-items:center;justify-content:center;height:130px;width:220px">
+              <div class="spin-loader"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ATRÁS DEL BUS (derecha) — baños -->
+        <div style="flex-shrink:0;width:58px;background:#f8fafc;border-left:2px solid #e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:space-around;padding:16px 6px">
+
+          <!-- Baño superior -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:38px;border-radius:10px;background:#eff6ff;border:1.5px solid #bfdbfe;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+              <svg width="14" height="14" fill="none" stroke="#60a5fa" stroke-width="1.8" viewBox="0 0 24 24">
+                <ellipse cx="12" cy="8" rx="6" ry="3"/>
+                <path stroke-linecap="round" d="M6 8v7c0 1.66 2.69 3 6 3s6-1.34 6-3V8"/>
+                <path stroke-linecap="round" d="M6 11.5c0 1.66 2.69 3 6 3s6-1.34 6-3"/>
+              </svg>
+              <span style="font-size:7px;font-weight:900;color:#60a5fa;letter-spacing:.04em">WC</span>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;text-align:center">Baño</span>
+          </div>
+
+          <!-- Divisor -->
+          <div style="width:30px;border-top:1.5px dashed #cbd5e1"></div>
+
+          <!-- Baño inferior -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:34px;height:38px;border-radius:10px;background:#eff6ff;border:1.5px solid #bfdbfe;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+              <svg width="14" height="14" fill="none" stroke="#60a5fa" stroke-width="1.8" viewBox="0 0 24 24">
+                <ellipse cx="12" cy="8" rx="6" ry="3"/>
+                <path stroke-linecap="round" d="M6 8v7c0 1.66 2.69 3 6 3s6-1.34 6-3V8"/>
+                <path stroke-linecap="round" d="M6 11.5c0 1.66 2.69 3 6 3s6-1.34 6-3"/>
+              </svg>
+              <span style="font-size:7px;font-weight:900;color:#60a5fa;letter-spacing:.04em">WC</span>
+            </div>
+            <span style="font-size:7px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;text-align:center">Baño</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="border-top:1px solid #f1f5f9;background:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <!-- Tipo de bus con icono -->
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="22" height="18" fill="none" stroke="#9ca3af" stroke-width="1.6" viewBox="0 0 30 20">
+          <rect x="1" y="3" width="28" height="13" rx="3"/>
+          <path stroke-linecap="round" d="M1 9h28M8 16v2M22 16v2"/>
+          <circle cx="6" cy="12.5" r="1.2" fill="#9ca3af" stroke="none"/>
+          <circle cx="24" cy="12.5" r="1.2" fill="#9ca3af" stroke="none"/>
+          <path stroke-linecap="round" d="M28 3l2 3v4h-2"/>
+        </svg>
+        <span id="m-tipo-footer" style="font-size:13px;font-weight:700;color:#374151"></span>
+      </div>
+      <!-- Botón + contador debajo -->
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+        <button id="btn-continuar" onclick="continuar()" disabled
+                class="btn-continuar-dis font-extrabold text-sm px-8 py-2.5 rounded-xl transition-all whitespace-nowrap">
+          Continuar: S/0
+        </button>
+        <span style="font-size:12px;color:#6b7280;font-weight:500">
+          N° asientos seleccionados: <span id="m-count" style="font-weight:800;color:#111827">0</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ── Tabs de piso (pill) ── */
+  .tab-piso {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 18px; border-radius:99px; font-weight:800; font-size:13px;
+    cursor:pointer; border:none; transition:all .18s ease;
+    white-space:nowrap; outline:none;
+  }
+  .tab-on  { background:#1f2937; color:#fff; box-shadow:0 4px 14px rgba(31,41,55,.25); }
+  .tab-off { background:transparent; color:#6b7280; }
+  .tab-off:hover { background:#d1d5db; }
+
+  /* ── Spinner ── */
+  .spin-loader {
+    width:30px; height:30px; border:3px solid #e5e7eb;
+    border-top-color:#f59e0b; border-radius:50%;
+    animation:_spin .75s linear infinite;
+  }
+  @keyframes _spin { to { transform:rotate(360deg); } }
+
+  /* ── Botón continuar ── */
+  .btn-continuar-dis { background:#e5e7eb; color:#9ca3af; cursor:not-allowed; }
+  .btn-continuar-ok  { background:#e95c20; color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(233,92,32,.35); }
+  .btn-continuar-ok:hover { background:#d14e18; }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const hoy = '{{ hoy|date:"Y-m-d" }}';
+document.getElementById('fecha-ida').min = hoy;
+const BUS_PHOTOS = [
+  "{% static 'img/autobus/autobus01.png' %}",
+  "{% static 'img/autobus/autobus02.png' %}",
+  "{% static 'img/autobus/autobus03.png' %}",
+  "{% static 'img/autobus/autobus04.png' %}",
+];
+
+function getTemplateHTML(id) {
+  const tpl = document.getElementById(id);
+  return tpl ? tpl.innerHTML : '';
+}
+
+function openPolicyModal(titulo, contenido) {
+  const modal = document.getElementById('policy-modal');
+  document.getElementById('policy-modal-title').textContent = titulo;
+  document.getElementById('policy-modal-body').innerHTML = contenido;
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePolicyModal() {
+  const modal = document.getElementById('policy-modal');
+  if (modal) modal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function openBusPhotosModal(imagenes) {
+  const modal = document.getElementById('bus-photos-modal');
+  const grid = document.getElementById('bus-photos-grid');
+  grid.innerHTML = imagenes.map((src, index) => `
+    <figure class="overflow-hidden rounded-3xl bg-gray-100 shadow-xl ring-1 ring-gray-100">
+      <img src="${src}" alt="Foto del bus ${index + 1}" class="h-56 w-full object-cover sm:h-72">
+    </figure>
+  `).join('');
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBusPhotosModal() {
+  const modal = document.getElementById('bus-photos-modal');
+  if (modal) modal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+let serviceTooltip = null;
+
+function ensureServiceTooltip() {
+  if (serviceTooltip) return serviceTooltip;
+  serviceTooltip = document.createElement('div');
+  serviceTooltip.id = 'service-option-tooltip';
+  serviceTooltip.className = 'pointer-events-none fixed z-[260] hidden w-72 rounded-2xl bg-white p-4 text-left text-xs leading-5 text-gray-600 opacity-0 shadow-2xl ring-1 ring-gray-100 transition-opacity duration-150';
+  serviceTooltip.innerHTML = '<p class="mb-1 font-black text-gray-900" data-tip-title></p><p data-tip-text></p>';
+  document.body.appendChild(serviceTooltip);
+  return serviceTooltip;
+}
+
+function showServiceTooltip(trigger) {
+  if (window.matchMedia('(hover: none)').matches) return;
+  const title = trigger.dataset.tooltipTitle || '';
+  const text = trigger.dataset.tooltipText || '';
+  const tooltip = ensureServiceTooltip();
+  tooltip.querySelector('[data-tip-title]').textContent = title;
+  tooltip.querySelector('[data-tip-text]').textContent = text;
+  tooltip.classList.remove('hidden');
+
+  const rect = trigger.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const gap = 12;
+  let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  left = Math.max(12, Math.min(left, window.innerWidth - tooltipRect.width - 12));
+  let top = rect.top - tooltipRect.height - gap;
+  if (top < 12) top = rect.bottom + gap;
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+  requestAnimationFrame(() => tooltip.classList.add('opacity-100'));
+}
+
+function hideServiceTooltip() {
+  if (!serviceTooltip) return;
+  serviceTooltip.classList.remove('opacity-100');
+  setTimeout(() => {
+    if (serviceTooltip && !serviceTooltip.classList.contains('opacity-100')) {
+      serviceTooltip.classList.add('hidden');
+    }
+  }, 160);
+}
+
+document.querySelectorAll('.service-option-tip').forEach(option => {
+  option.addEventListener('mouseenter', () => showServiceTooltip(option));
+  option.addEventListener('mouseleave', hideServiceTooltip);
+  option.addEventListener('focus', () => showServiceTooltip(option));
+  option.addEventListener('blur', hideServiceTooltip);
+});
+
+function openTripDetailsModal(trigger, viajeId, activeSection) {
+  const card = trigger.closest('.viaje-card');
+  const data = card ? card.dataset : {};
+  const empresa = data.empresa || 'Transporte';
+  const tipo = data.tipo || 'Servicio de bus';
+  const salida = data.salida || '';
+  const llegada = data.llegada || '';
+  const fecha = data.fecha || '';
+  const origen = data.origen || '';
+  const destino = data.destino || '';
+  const assignedPhoto = data.busImage || BUS_PHOTOS[0];
+  const photosHtml = `
+    <figure class="max-w-2xl overflow-hidden rounded-2xl bg-gray-100 shadow-lg ring-1 ring-gray-100">
+      <img src="${assignedPhoto}" alt="Foto del bus de ${empresa}" class="h-64 w-full object-cover sm:h-80">
+    </figure>
+  `;
+
+  const tabs = [
+    ['why', '\u00bfPor qu\u00e9 reservar este autob\u00fas?'],
+    ['boarding', 'Punto de embarque / bajada'],
+    ['photos', 'Fotos del bus'],
+    ['services', 'Servicios'],
+    ['reviews', 'Calificaciones y rese\u00f1as'],
+    ['cancel', 'Pol\u00edtica de cancelaci\u00f3n'],
+    ['policies', 'Otras pol\u00edticas'],
+  ];
+
+  const tabsHtml = tabs.map(([key, label]) => `
+    <button type="button"
+            data-trip-tab="${key}"
+            onclick="activateTripDetailsTab('${key}')"
+            class="trip-detail-tab flex-shrink-0 border-b-4 border-transparent px-5 py-4 text-sm font-black text-gray-900 hover:text-red-600 transition-colors">
+      ${label}
+    </button>
+  `).join('');
+
+  const content = `
+    <div class="rounded-[28px] bg-white">
+      <div class="px-1 sm:px-0">
+        <h4 class="text-xl font-black text-gray-950">${empresa}</h4>
+        <p class="mt-1 text-base text-gray-600">${salida} - ${llegada} · ${fecha}</p>
+        <p class="text-base font-medium text-gray-600">${tipo}</p>
+      </div>
+
+      <div class="mt-6 overflow-x-auto border-b border-gray-200">
+        <div class="flex min-w-max items-center">
+          ${tabsHtml}
+        </div>
+      </div>
+
+      <div class="pt-8">
+        <section data-trip-section="why" class="trip-detail-section">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">\u00bfPor qu\u00e9 reservar este autob\u00fas?</h3>
+          ${getTemplateHTML('why-bus-' + viajeId)}
+        </section>
+
+        <section data-trip-section="boarding" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Punto de embarque / bajada</h3>
+          ${getTemplateHTML('boarding-bus-' + viajeId)}
+        </section>
+
+        <section data-trip-section="photos" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Fotos del bus</h3>
+          <div class="grid gap-4 sm:grid-cols-2">${photosHtml}</div>
+        </section>
+
+        <section data-trip-section="services" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Servicios del bus</h3>
+          ${getTemplateHTML('services-bus-' + viajeId)}
+        </section>
+
+        <section data-trip-section="reviews" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Calificaciones y rese\u00f1as</h3>
+          ${getTemplateHTML('reviews-bus-' + viajeId)}
+        </section>
+
+        <section data-trip-section="cancel" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Pol\u00edtica de cancelaci\u00f3n</h3>
+          <div class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+            ${getTemplateHTML('cancel-bus-' + viajeId)}
+          </div>
+        </section>
+
+        <section data-trip-section="policies" class="trip-detail-section hidden">
+          <h3 class="mb-7 text-2xl font-black text-gray-950">Otras pol\u00edticas</h3>
+          ${getTemplateHTML('other-policies-bus-' + viajeId)}
+        </section>
+      </div>
+    </div>
+  `;
+
+  openPolicyModal(`${empresa} · ${origen} - ${destino}`, content);
+  activateTripDetailsTab(activeSection || 'why');
+}
+
+function activateTripDetailsTab(section) {
+  document.querySelectorAll('.trip-detail-section').forEach(el => {
+    el.classList.toggle('hidden', el.dataset.tripSection !== section);
+  });
+  document.querySelectorAll('.trip-detail-tab').forEach(tab => {
+    const isActive = tab.dataset.tripTab === section;
+    tab.classList.toggle('border-red-500', isActive);
+    tab.classList.toggle('text-red-600', isActive);
+    tab.classList.toggle('border-transparent', !isActive);
+    tab.classList.toggle('text-gray-900', !isActive);
+  });
+  const body = document.getElementById('policy-modal-body');
+  if (body) body.scrollTop = 0;
+}
+
+function intercambiar() {
+  const o = document.querySelector('[name="origen"]');
+  const d = document.querySelector('[name="destino"]');
+  [o.value, d.value] = [d.value, o.value];
+}
+
+// ── Filtros ───────────────────────────────────────────────────────────────
+const activosTurno = new Set(), activosServicio = new Set();
+function aplicarFiltros() {
+  document.querySelectorAll('.viaje-card').forEach(c => {
+    const okT = !activosTurno.size    || activosTurno.has(c.dataset.turno);
+    const okS = !activosServicio.size || activosServicio.has(c.dataset.servicio);
+    c.style.display = (okT && okS) ? '' : 'none';
+  });
+}
+function filtrarTurno(t, cb)    { cb.checked ? activosTurno.add(t)    : activosTurno.delete(t);    aplicarFiltros(); }
+function filtrarServicio(s, cb) { cb.checked ? activosServicio.add(s) : activosServicio.delete(s); aplicarFiltros(); }
+
+// ── Ordenamiento ─────────────────────────────────────────────────────────
+function ordenar(criterio, btn) {
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.remove('sort-active');
+    b.classList.replace('text-white', 'text-white/70');
+  });
+  btn.classList.add('sort-active', 'text-white');
+  btn.classList.remove('text-white/70');
+  const lista = document.getElementById('lista-viajes');
+  const cards = [...lista.querySelectorAll('.viaje-card')];
+  cards.sort((a, b) => {
+    if (criterio === 'hora')   return a.dataset.hora.localeCompare(b.dataset.hora);
+    if (criterio === 'precio') return parseFloat(a.dataset.precio) - parseFloat(b.dataset.precio);
+    if (criterio === 'rapido') return parseInt(a.dataset.duracion)  - parseInt(b.dataset.duracion);
+    return 0;
+  });
+  cards.forEach(c => lista.appendChild(c));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODAL DE SELECCIÓN DE ASIENTOS
+// ═══════════════════════════════════════════════════════════════════════
+const TIMER_KEY = 'tv_seat_timer';
+const TIMER_MS  = 10 * 60 * 1000;   // 10 minutos
+
+let modalData           = null;
+let asientosSeleccionados = new Set();
+let pisoActual          = 1;
+let timerInterval       = null;
+
+function abrirAsientos(btn) {
+  const precioPromo = btn.dataset.precioPromo ? parseFloat(btn.dataset.precioPromo) : null;
+  modalData = {
+    viajeId:    btn.dataset.viajeId,
+    precio:     parseFloat(btn.dataset.precio),
+    promoId:    btn.dataset.promoId || '',
+    precioEfectivo: precioPromo !== null ? precioPromo : parseFloat(btn.dataset.precio),
+    origen:     btn.dataset.origen,
+    destino:    btn.dataset.destino,
+    salida:     btn.dataset.salida,
+    llegada:    btn.dataset.llegada,
+    empresa:    btn.dataset.empresa,
+    tipo:       btn.dataset.tipo,
+    fecha:      btn.dataset.fecha,
+    esDoble:    btn.dataset.doblePiso === 'true',
+    capacidad:  0,
+    reservados: new Set(),
+  };
+  asientosSeleccionados = new Set();
+  pisoActual = 1;
+
+  // Rellenar encabezado
+  document.getElementById('m-ruta').textContent     = `${modalData.origen} → ${modalData.destino}`;
+  const tipoFooter = document.getElementById('m-tipo-footer');
+  if (tipoFooter) tipoFooter.textContent = modalData.tipo || '';
+  document.getElementById('m-empresa').textContent  = modalData.empresa;
+  document.getElementById('m-tipo').textContent     = modalData.tipo;
+  document.getElementById('m-horario').textContent  = `${modalData.salida} – ${modalData.llegada} · ${modalData.fecha}`;
+
+  // Tabs de piso — Piso #1 activo por defecto (piso principal)
+  activarTab(document.getElementById('tab1'));
+  pisoActual = 1;
+
+  // Iniciar timer
+  localStorage.setItem(TIMER_KEY, Date.now().toString());
+  iniciarTimer();
+
+  // Mostrar modal
+  document.getElementById('modal-asientos').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Cargar asientos desde servidor
+  document.getElementById('mapa-asientos').innerHTML =
+    '<div class="flex items-center justify-center h-40 w-full"><div class="w-7 h-7 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div></div>';
+  fetch(`/viajes/asientos/${modalData.viajeId}/`)
+    .then(r => r.json())
+    .then(data => {
+      modalData.capacidad  = data.capacidad;
+      modalData.pisoSplit  = data.piso_split;
+      modalData.reservados = new Set(data.reservados);  // amarillo (reserva temporal)
+      modalData.ocupados   = new Set(data.ocupados);    // rojo (confirmado/usado)
+
+      // Ocultar/mostrar tab de Piso #1 según tenga asientos
+      const tab1 = document.getElementById('tab1');
+      if (data.piso_split >= data.capacidad) {
+        // Piso #1 está vacío (bus de 1 piso)
+        tab1.style.display = 'none';
+        pisoActual = 2;  // forzar piso 2
+      } else {
+        tab1.style.display = 'inline-flex';
+      }
+
+      renderMapa();
+    })
+    .catch(() => toast('Error al cargar los asientos. Intenta de nuevo.'));
+}
+
+function cerrarModal() {
+  document.getElementById('modal-asientos').classList.add('hidden');
+  document.body.style.overflow = '';
+  clearInterval(timerInterval);
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────
+function iniciarTimer() {
+  clearInterval(timerInterval);
+  actualizarDisplay();
+  timerInterval = setInterval(() => {
+    const r = restante();
+    if (r <= 0) {
+      clearInterval(timerInterval);
+      cerrarModal();
+      toast('El tiempo de selección expiró. Por favor intenta de nuevo.');
+      return;
+    }
+    actualizarDisplay();
+  }, 1000);
+}
+
+function restante() {
+  const start = parseInt(localStorage.getItem(TIMER_KEY) || '0');
+  return Math.max(0, TIMER_MS - (Date.now() - start));
+}
+
+function actualizarDisplay() {
+  const r   = restante();
+  const s   = Math.floor(r / 1000);
+  const txt = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+  const el  = document.getElementById('m-timer');
+  if (!el) return;
+  el.textContent = txt;
+  el.className   = r < 60000
+    ? 'font-mono font-bold text-sm text-red-400 animate-pulse'
+    : 'font-mono font-bold text-sm text-orange-400';
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function activarTab(btn) {
+  ['tab1','tab2'].forEach(id => {
+    const t = document.getElementById(id);
+    if (!t) return;
+    if (t === btn) {
+      t.className = 'tab-piso tab-on';
+    } else {
+      t.className = 'tab-piso tab-off';
+    }
+  });
+}
+
+function cambiarPiso(piso, btn) {
+  pisoActual = piso;
+  activarTab(btn);
+  renderMapa();
+}
+ 
+// ── Mapa de asientos HORIZONTAL ──────────────────────────────────────────
+// Layout: frente (izq) → atrás (der). 4 filas: ventana-L, pasillo-L, [pasillo], pasillo-R, ventana-R
+function renderMapa() {
+  const cap  = modalData.capacidad;
+  const tipo = modalData.tipo || 'economico';
+  const split = modalData.pisoSplit || Math.floor(cap / 2);
+  let desde, hasta;
+  if (pisoActual === 2) { desde = 1;        hasta = Math.min(split, cap); }
+  else                  { desde = split + 1; hasta = cap;                  }
+
+  const total = hasta - desde + 1;
+  if (total <= 0) {
+    document.getElementById('mapa-asientos').innerHTML =
+      '<p style="color:#9ca3af;font-size:13px;padding:40px 20px">Sin asientos disponibles.</p>';
+    return;
+  }
+ 
+  const cols = Math.ceil(total / 4);
+  const gapSize = tipo === 'bus_cama_vip' ? '15px' : '5px';
+  const GAP  = '<div style="width:' + gapSize + ';flex-shrink:0"></div>';
+
+  let rA = '', rB = '', rC = '', rD = '';
+  for (let c = 0; c < cols; c++) {
+    const nA = desde + c * 4 + 0;
+    const nB = desde + c * 4 + 1;
+    const nC = desde + c * 4 + 2;
+    const nD = desde + c * 4 + 3;
+    const ph = '<div style="width:64px;height:62px;flex-shrink:0"></div>';
+    rA += (nA <= hasta ? asientoHTML(nA, tipo) : ph) + GAP;
+    rB += (nB <= hasta ? asientoHTML(nB, tipo) : ph) + GAP;
+    rC += (nC <= hasta ? asientoHTML(nC, tipo) : ph) + GAP;
+    rD += (nD <= hasta ? asientoHTML(nD, tipo) : ph) + GAP;
+  }
+
+  document.getElementById('mapa-asientos').innerHTML = `
+    <div style="display:flex">${rA}</div>
+    <div style="display:flex">${rB}</div>
+    <div style="height:26px;display:flex;align-items:center;gap:6px">
+      <div style="flex:1;border-top:2px dashed #94a3b8"></div>
+      <span style="font-size:9px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap;background:#e2e8f0;padding:2px 8px;border-radius:99px;flex-shrink:0">Pasillo</span>
+      <div style="flex:1;border-top:2px dashed #94a3b8"></div>
+    </div>
+    <div style="display:flex">${rC}</div>
+    <div style="display:flex">${rD}</div>`;
+}
+
+// Colores por categoría para asientos libres
+const COLORES_TIPO = {
+  economico:    { bg: '#22c55e', br: '#16a34a', txt: '#14532d', glow: 'rgba(34,197,94,.6)'  },
+  bus_cama:     { bg: '#3b82f6', br: '#2563eb', txt: '#1e3a8a', glow: 'rgba(59,130,246,.6)' },
+  bus_cama_vip: { bg: '#d97706', br: '#b45309', txt: '#451a03', glow: 'rgba(217,119,6,.6)'  },
+};
+
+function asientoHTML(num, tipo) {
+  const lbl  = num.toString().padStart(2, '0');
+  const ocu  = modalData.ocupados.has(num);
+  const res  = modalData.reservados.has(num);
+  const sel  = asientosSeleccionados.has(num);
+  const W    = 'flex-shrink:0;width:64px;';
+
+  // Ocupado — rojo (vendido)
+  if (ocu) return `<div title="Ocupado" style="${W}cursor:not-allowed;user-select:none">
+    <div style="background:#fca5a5;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div>
+    <div style="background:#ef4444;border:none;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff">${lbl}</div>
+  </div>`;
+
+  // Reservado — amarillo (reserva temporal)
+  if (res) return `<div title="Reservado" style="${W}cursor:not-allowed;user-select:none">
+    <div style="background:#fde68a;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div>
+    <div style="background:#fbbf24;border:none;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#78350f">${lbl}</div>
+  </div>`;
+
+  // Seleccionado por el usuario — naranja
+  if (sel) return `<div onclick="toggleAsiento(${num})" title="Quitar selección"
+    style="${W}cursor:pointer;user-select:none;transition:all .15s;transform:translateY(-4px);filter:drop-shadow(0 8px 12px rgba(233,92,32,.5))">
+    <div style="background:#c2410c;border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div>
+    <div style="background:#e95c20;border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff">${lbl}</div>
+  </div>`;
+
+  // Libre — color según categoría
+  const c = COLORES_TIPO[tipo] || COLORES_TIPO.economico;
+  return `<div onclick="toggleAsiento(${num})" title="Libre — clic para seleccionar"
+    onmouseover="this.style.transform='translateY(-3px)';this.style.filter='drop-shadow(0 6px 10px ${c.glow})'"
+    onmouseout="this.style.transform='none';this.style.filter='none'"
+    style="${W}cursor:pointer;user-select:none;transition:all .15s">
+    <div style="background:${c.br};border-radius:6px 6px 0 0;height:16px;margin:0 7px"></div>
+    <div style="background:${c.bg};border-radius:0 0 10px 10px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:${c.txt}">${lbl}</div>
+  </div>`;
+}
+
+function toggleAsiento(num) {
+  if (asientosSeleccionados.has(num)) {
+    asientosSeleccionados.delete(num);
+  } else {
+    if (asientosSeleccionados.size >= 4) {
+      toast('Máximo 4 asientos por compra.');
+      return;
+    }
+    asientosSeleccionados.add(num);
+  }
+  renderMapa();
+  actualizarFooter();
+}
+
+function actualizarFooter() {
+  const n    = asientosSeleccionados.size;
+  const tot  = (modalData.precioEfectivo * n).toFixed(0);
+  document.getElementById('m-count').textContent = n;
+  const tipoEl = document.getElementById('m-tipo-footer');
+  if (tipoEl) tipoEl.textContent = modalData.tipo || '';
+  const btn  = document.getElementById('btn-continuar');
+  btn.textContent = `Continuar: S/${tot}`;
+  btn.disabled    = n === 0;
+  btn.className   = `btn-continuar-${n ? 'ok' : 'dis'} font-extrabold text-sm px-8 py-2.5 rounded-xl transition-all whitespace-nowrap`;
+}
+
+function continuar() {
+  if (!asientosSeleccionados.size) return;
+  const asientos = [...asientosSeleccionados].sort((a, b) => a - b).join(',');
+  let url = `/viajes/pagar/${modalData.viajeId}/?asientos=${asientos}`;
+  if (modalData.promoId) url += `&promo_id=${modalData.promoId}`;
+  window.location.href = url;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[300] bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-2xl pointer-events-none';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// Cerrar modales con Escape
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  closePolicyModal();
+  closeBusPhotosModal();
+  cerrarModal();
+});
+</script>
+{% endblock %}

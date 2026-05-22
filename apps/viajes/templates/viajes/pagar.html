@@ -1,0 +1,1129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Pago de pasaje | Línea Imperial{% endblock %}
+
+{% block extra_css %}
+<style>
+  .step-done   { background:#e95c20; color:#fff; }
+  .step-active { background:#e95c20; color:#fff; box-shadow:0 0 0 4px rgba(233,92,32,.2); }
+  .step-next   { background:#e5e7eb; color:#9ca3af; }
+  .step-line-done { background:#e95c20; }
+  .step-line-next { background:#e5e7eb; }
+  .pay-card         { border:2px solid #e5e7eb; border-radius:14px; cursor:pointer; transition:all .2s; }
+  .pay-card:hover   { border-color:#cbd5e1; }
+  .pay-card.active  { border-color:#e95c20; background:#fff7f4; }
+  .pay-sub          { display:none; }
+  .pay-sub.visible  { display:block; }
+  .input-field {
+    width:100%; padding:.65rem 1rem; border:2px solid #e5e7eb;
+    border-radius:10px; font-size:.875rem; color:#1f2937;
+    transition:border-color .15s; outline:none;
+  }
+  .input-field:focus { border-color:#e95c20; }
+  .input-field.error { border-color:#ef4444 !important; background:#fff5f5; }
+  .input-label { font-size:.75rem; font-weight:700; color:#6b7280; margin-bottom:.35rem; display:block; text-transform:uppercase; letter-spacing:.04em; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ─── TIMER BANNER ──────────────────────────────────────────────────────── -->
+<div id="timer-banner" class="bg-[#1a2748] text-white py-2.5 hidden">
+  <div class="max-w-6xl mx-auto px-4 flex items-center justify-center gap-3 text-sm">
+    <svg class="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span>Tiempo para completar tu compra: <strong id="pay-timer" class="text-orange-400 font-mono">--:--</strong></span>
+  </div>
+</div>
+
+<!-- ─── PASOS ─────────────────────────────────────────────────────────────── -->
+<div class="bg-white border-b border-gray-100 py-4 relative">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="flex items-center max-w-sm mx-auto gap-0">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-done flex items-center justify-center text-xs font-black flex-shrink-0">✓</div>
+        <span class="text-xs font-bold text-gray-400 whitespace-nowrap">Ida</span>
+      </div>
+      <div class="flex-1 h-[3px] mx-3 step-line-done"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-active flex items-center justify-center text-xs font-black flex-shrink-0">2</div>
+        <span class="text-xs font-bold text-[#e95c20] whitespace-nowrap">Pago</span>
+      </div>
+      <div class="flex-1 h-[3px] mx-3 step-line-next"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full step-next flex items-center justify-center text-xs font-black flex-shrink-0">3</div>
+        <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Confirmación</span>
+      </div>
+    </div>
+  </div>
+  <!-- Botón salir -->
+  <button onclick="abrirModalSalir()" title="Salir de la compra"
+    class="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors border border-gray-200 hover:border-red-200">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ─── MODAL CONFIRMAR SALIDA ────────────────────────────────────────────── -->
+<div id="modal-salir" class="fixed inset-0 z-[200] hidden">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="cerrarModalSalir()"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-7 text-center pointer-events-auto">
+      <div class="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+      </div>
+      <h3 class="font-black text-gray-800 text-lg mb-2">¿Estás seguro de salir?</h3>
+      <p class="text-sm text-gray-500 mb-6">Perderás tu selección de asientos y tendrás que empezar de nuevo.</p>
+      <div class="flex gap-3">
+        <button onclick="cerrarModalSalir()"
+          class="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-bold text-sm hover:border-gray-300 transition-colors">
+          Seguir comprando
+        </button>
+        <a href="{% url 'viajes:buscar' %}"
+          class="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition-colors flex items-center justify-center">
+          Sí, salir
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CONTENIDO PRINCIPAL ───────────────────────────────────────────────── -->
+<div class="bg-gray-50 min-h-screen py-8">
+  <div class="max-w-6xl mx-auto px-4">
+
+    {% if error %}
+    <div class="mb-5 bg-red-50 border border-red-200 text-red-700 px-5 py-3.5 rounded-xl text-sm font-medium flex items-start gap-3">
+      <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col lg:flex-row gap-6 items-start">
+
+      <!-- ═══════════════════════════════ COLUMNA IZQUIERDA -->
+      <div class="flex-1 min-w-0 space-y-5">
+
+        <!-- Sin cuenta banner -->
+        {% if not request.user.is_authenticated %}
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p class="font-bold text-gray-800 text-sm">¿No tienes una cuenta?</p>
+            <p class="text-xs text-gray-500 mt-0.5">Inicia sesión para guardar tu historial de viajes</p>
+          </div>
+          <a href="/login/" class="bg-[#e95c20] hover:bg-[#d14e18] text-white font-bold text-sm px-5 py-2 rounded-xl transition-colors flex-shrink-0">
+            Iniciar sesi&oacute;n / Crear cuenta
+          </a>
+        </div>
+        {% endif %}
+
+        <!-- Información del pasajero -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="font-bold text-gray-800 text-sm">Información del pasajero</h2>
+              <p class="text-xs text-gray-500">IDA · Asientos: <strong>{{ asientos|join:", " }}</strong></p>
+            </div>
+          </div>
+
+          <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Tipo documento -->
+            <div>
+              <label class="input-label">Tipo de Documento</label>
+              <select id="tipo-doc" class="input-field" name="tipo_doc" form="form-confirmar" required>
+                <option value="">Seleccionar...</option>
+                <option>DNI</option>
+                <option>Pasaporte</option>
+                <option>Carné de Extranjería</option>
+              </select>
+            </div>
+            <!-- N° Documento -->
+            <div>
+              <label class="input-label">Nº de Documento <span class="text-red-400 normal-case tracking-normal">*</span></label>
+              <input type="text" id="num-doc" class="input-field" name="num_doc" form="form-confirmar" maxlength="8"
+                     inputmode="numeric" pattern="[0-9]{8}" placeholder="Selecciona un tipo" autocomplete="off" disabled required>
+            </div>
+            <!-- Teléfono -->
+            <div>
+              <label class="input-label">Teléfono <span class="text-red-400 normal-case tracking-normal">*</span></label>
+              <input type="tel" id="telefono" class="input-field" name="telefono" form="form-confirmar"
+                     placeholder="9XXXXXXXX" autocomplete="off">
+            </div>
+            <!-- Nombre -->
+            <div>
+              <label class="input-label">Nombres <span class="text-red-400 normal-case tracking-normal">*</span></label>
+              <input type="text" id="nombres" class="input-field" name="nombres" form="form-confirmar"
+                     placeholder="Nombres" autocomplete="off">
+            </div>
+            <!-- Apellido -->
+            <div>
+              <label class="input-label">Apellidos <span class="text-red-400 normal-case tracking-normal">*</span></label>
+              <input type="text" id="apellidos" class="input-field" name="apellidos" form="form-confirmar"
+                     placeholder="Apellidos" autocomplete="off">
+            </div>
+            <!-- Email -->
+            <div>
+              <label class="input-label">Correo electrónico <span class="text-red-400 normal-case tracking-normal">*</span></label>
+              <input type="email" id="email" class="input-field" name="email" form="form-confirmar"
+                     placeholder="correo@ejemplo.com" autocomplete="off">
+            </div>
+            <!-- Genero -->
+            <div>
+              <label class="input-label">Genero</label>
+              <select id="genero" class="input-field" name="genero" form="form-confirmar">
+                <option value="">Seleccionar...</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+            </div>
+            <!-- Fecha de nacimiento -->
+            <div>
+              <label class="input-label">Fecha de nacimiento</label>
+              <input type="date" id="fecha-nacimiento" class="input-field" name="fecha_nacimiento" form="form-confirmar">
+            </div>
+          </div>
+          <div class="hidden border-t border-gray-100 px-6 pb-5 pt-4 text-right" id="pasajero-acciones">
+            <button type="button" id="btn-guardar-pasajero"
+              class="inline-flex items-center justify-center rounded-xl bg-[#e95c20] px-5 py-2.5 text-sm font-extrabold text-white shadow-sm transition-colors hover:bg-[#d14e18] disabled:cursor-not-allowed disabled:opacity-60">
+              Actualizar datos
+            </button>
+          </div>
+        </div>
+
+        <!-- Opciones de pago -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+              </svg>
+            </div>
+            <h2 class="font-bold text-gray-800 text-sm">Opciones de pago</h2>
+          </div>
+
+          <div class="px-6 py-5 space-y-3">
+
+            <!-- Código promocional -->
+            <div class="flex items-center gap-3 py-1 cursor-pointer" onclick="togglePromo()">
+              <div id="ico-promo" class="w-5 h-5 rounded border-2 border-gray-300 flex-shrink-0 flex items-center justify-center transition-all"></div>
+              <span class="text-sm font-semibold text-gray-700">Código promocional</span>
+            </div>
+            <div id="sub-promo" class="pay-sub pl-8">
+              <input type="text" class="input-field" placeholder="Ingresa tu código promo" style="max-width:280px">
+              <button class="mt-2 text-xs font-bold text-[#e95c20] hover:underline">Aplicar</button>
+            </div>
+
+            <!-- Factura con RUC -->
+            <div class="flex items-center gap-3 py-1 cursor-pointer" onclick="toggleRUC()">
+              <div id="ico-ruc" class="w-5 h-5 rounded border-2 border-gray-300 flex-shrink-0 flex items-center justify-center transition-all"></div>
+              <span class="text-sm font-semibold text-gray-700">Factura con RUC <span class="text-xs font-normal text-gray-400">(Solo para empresas peruanas)</span></span>
+            </div>
+            <div id="sub-ruc" class="pay-sub pl-8">
+              <input type="text" class="input-field" placeholder="Nº RUC (11 dígitos)" maxlength="11" style="max-width:220px">
+            </div>
+
+            <div class="border-t border-gray-100 pt-4 mt-2">
+              <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Método de pago <span class="text-red-400 normal-case">*</span></p>
+
+              <!-- Yape / Plin -->
+              <div id="pay-yape" class="pay-card active p-4 mb-3" onclick="seleccionarMetodo('yape', this)">
+                <div class="flex items-center gap-3">
+                  <div class="w-5 h-5 rounded-full border-2 border-[#e95c20] flex items-center justify-center flex-shrink-0">
+                    <div id="dot-yape" class="w-2.5 h-2.5 rounded-full bg-[#e95c20]"></div>
+                  </div>
+                  <div class="flex items-center gap-2 flex-1">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <span class="text-white font-black text-[10px]">Y</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-bold text-gray-800">Yape o Plin</p>
+                      <p class="text-[11px] text-gray-500">Pago instantáneo con tu app de billetera</p>
+                    </div>
+                  </div>
+                  <span class="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full flex-shrink-0">Recomendado</span>
+                    </div>
+                  </div>
+              <div id="sub-yape" class="pay-sub visible pb-4">
+                <input type="hidden" name="tipo_yape" id="tipo-yape-input" value="qr" form="form-confirmar">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <button type="button" id="opcion-yape-qr" onclick="seleccionarTipoYape('qr')"
+                    class="rounded-xl border-2 border-purple-500 bg-purple-50 px-4 py-3 text-left transition">
+                    <span class="block text-sm font-black text-purple-800">QR</span>
+                    <span class="block text-xs text-purple-600">Escanear y confirmar desde el modal.</span>
+                  </button>
+                  <button type="button" id="opcion-yape-codigo" onclick="seleccionarTipoYape('codigo')"
+                    class="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left transition hover:border-purple-200">
+                    <span class="block text-sm font-black text-gray-800">Código de verificación</span>
+                    <span class="block text-xs text-gray-500">Ingresa celular y código de aprobación.</span>
+                  </button>
+                </div>
+
+                <!-- PASO 1: Botón para generar el QR -->
+                <div id="yape-paso1" class="hidden rounded-xl border-2 border-dashed border-purple-200 bg-purple-50 p-5 text-center mb-3">
+                  <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6.364 1.636l-.707.707M20 12h-1M17.657 17.657l-.707-.707M12 19v1M6.343 17.657l-.707.707M4 12H3M6.343 6.343l.707.707"/>
+                      <circle cx="12" cy="12" r="3" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <p class="text-sm font-bold text-purple-800 mb-1">Monto a pagar: <span class="text-[#e95c20]">S/ {{ total }}</span></p>
+                  <p class="text-xs text-purple-600 mb-4">El QR se abrirá en un modal al confirmar la compra</p>
+                  <button type="button" onclick="submitPago()"
+                    class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-md shadow-purple-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Pagar con QR Yape
+                  </button>
+                  <!-- Billeteras -->
+                  <div class="flex flex-wrap justify-center gap-1.5 mt-4">
+                    <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white font-black text-[10px] shadow-sm" title="Yape">Y</div>
+                    <div class="w-8 h-8 rounded-lg bg-cyan-400 flex items-center justify-center text-white font-black text-[9px] shadow-sm" title="Plin">PLIN</div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-700 flex items-center justify-center text-white font-black text-[8px] shadow-sm" title="BCP">BCP</div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-900 flex items-center justify-center text-white font-black text-[8px] shadow-sm" title="BBVA">BBVA</div>
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black text-[8px] shadow-sm" title="Interbank">IBK</div>
+                    <div class="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black text-[8px] shadow-sm" title="Scotiabank">SCOT</div>
+                  </div>
+                </div>
+
+                <!-- PASO 2: QR generado (oculto hasta que se haga clic) -->
+                <div id="yape-paso2" class="hidden mb-3">
+                  <div class="rounded-xl border border-purple-200 bg-white overflow-hidden">
+                    <div class="flex items-stretch min-h-[170px]">
+                      <!-- Lado QR -->
+                      <div class="flex-1 p-4 border-r border-purple-100 flex flex-col items-center justify-center gap-2">
+                        <p class="text-[11px] text-center text-purple-700 font-semibold leading-tight">
+                          Escanea el QR y págalo<br>desde tu billetera favorita
+                        </p>
+                        <div id="yape-qr" class="w-28 h-28 flex-shrink-0 bg-white rounded overflow-hidden"></div>
+                        <p class="text-[10px] text-gray-400 text-center leading-tight">
+                          o transfiere al <strong class="text-purple-700">967 271 498</strong>
+                        </p>
+                      </div>
+                      <!-- Lado monto -->
+                      <div class="w-44 p-4 flex flex-col items-center justify-center gap-3 bg-violet-50">
+                        <div class="text-center">
+                          <p class="text-xs text-violet-600 font-medium">Monto a pagar</p>
+                          <p class="text-3xl font-black text-gray-900 mt-0.5">S/ {{ total }}</p>
+                        </div>
+                        <div class="w-full border-t border-violet-200"></div>
+                        <p class="text-[10px] text-violet-600 text-center leading-relaxed">
+                          Ya pagaste? Ingresa el código de <strong>6 dígitos</strong> de tu app
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Indicador de paso -->
+                  <p class="text-[10px] text-purple-500 text-center mt-2 flex items-center justify-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    El QR se ocultará automáticamente al ingresar tu código de aprobación
+                  </p>
+                </div>
+
+                <!-- PASO 3: Código ingresado (confirmación visual, oculto hasta que se escriba código) -->
+                <div id="yape-paso3" class="hidden rounded-xl bg-green-50 border border-green-200 px-4 py-3 mb-3 flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-bold text-green-800">Código ingresado</p>
+                    <p class="text-xs text-green-600">Procede a confirmar tu compra</p>
+                  </div>
+                </div>
+
+                <!-- Campo código de aprobación (siempre visible dentro del bloque Yape) -->
+                <div id="yape-codigo-area" class="hidden rounded-xl border border-purple-100 bg-purple-50 p-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="input-label text-purple-700">Celular Yape <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                      <input type="tel" id="yape-celular" name="yape_celular" form="form-confirmar"
+                             class="input-field bg-white" placeholder="9XXXXXXXX" maxlength="9" inputmode="numeric" autocomplete="off">
+                    </div>
+                    <div>
+                  <label class="input-label text-purple-700">Código de aprobación <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                  <input type="text" id="num-operacion" name="yape_codigo" form="form-confirmar" class="input-field bg-white text-center font-mono text-lg"
+                         placeholder="• • • • • •" maxlength="6" inputmode="numeric"
+                         style="max-width:190px" autocomplete="off">
+                  <p class="text-[10px] text-purple-600 mt-1">6 dígitos · aparece en Yape al confirmar el pago</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Tarjeta -->
+              <div id="pay-tarjeta" class="pay-card p-4" onclick="seleccionarMetodo('tarjeta', this)">
+                <div class="flex items-center gap-3">
+                  <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0">
+                    <div id="dot-tarjeta" class="w-2.5 h-2.5 rounded-full bg-transparent"></div>
+                  </div>
+                  <div class="flex items-center gap-2 flex-1">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-bold text-gray-800">Tarjeta de Crédito / Débito</p>
+                      <p class="text-[11px] text-gray-500">Visa, Mastercard, American Express</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1 flex-shrink-0">
+                    <div class="w-7 h-4 rounded bg-blue-600 flex items-center justify-center"><span class="text-[7px] font-black text-white">VISA</span></div>
+                    <div class="w-7 h-4 rounded bg-orange-500 flex items-center justify-center"><span class="text-[7px] font-black text-white">MC</span></div>
+                  </div>
+                </div>
+              </div>
+              <div id="sub-tarjeta" class="pay-sub pl-4 pb-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+                  <div class="sm:col-span-2">
+                    <label class="input-label">Número de tarjeta <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                    <input type="text" id="num-tarjeta" class="input-field" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="off">
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="input-label">Nombre en la tarjeta <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                    <input type="text" id="nombre-tarjeta" class="input-field" placeholder="Como aparece en la tarjeta" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="input-label">Vencimiento <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                    <input type="text" id="venc-tarjeta" class="input-field" placeholder="MM/AA" maxlength="5" autocomplete="off">
+                  </div>
+                  <div>
+                    <label class="input-label">CVV <span class="text-red-400 normal-case tracking-normal">*</span></label>
+                    <input type="text" id="cvv-tarjeta" class="input-field" placeholder="•••" maxlength="4" autocomplete="off">
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /métodos -->
+          </div><!-- /opciones body -->
+        </div><!-- /opciones card -->
+
+      </div><!-- /col izq -->
+
+      <!-- ═══════════════════════════════ COLUMNA DERECHA (sticky) -->
+      <div class="lg:w-80 flex-shrink-0 w-full">
+        <div class="lg:sticky lg:top-4 space-y-4">
+
+          <!-- Resumen de compra -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-[#1a2748] px-5 py-4">
+              <h3 class="font-black text-white text-base">Tu compra</h3>
+              <p class="text-blue-200 text-xs mt-0.5">{{ viaje.ruta.origen }} → {{ viaje.ruta.destino }}</p>
+            </div>
+            <div class="px-5 py-4 space-y-3">
+
+              <!-- Empresa y fecha -->
+              <div class="flex items-center gap-3 pb-3 border-b border-gray-100">
+                <div class="text-xs text-gray-600">
+                  <p class="font-bold">{{ viaje.bus.empresa }}</p>
+                  <p class="text-gray-400">{{ viaje.fecha_salida|date:"D, d M. Y" }}</p>
+                </div>
+              </div>
+
+              <!-- Horario -->
+              <div class="flex items-start gap-3 text-xs pb-3 border-b border-gray-100">
+                <div class="flex flex-col items-center mt-0.5">
+                  <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <div class="w-0.5 h-6 bg-gray-200 my-1"></div>
+                  <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+                </div>
+                <div class="space-y-2.5">
+                  <div>
+                    <p class="font-black text-gray-900 text-base leading-none">{{ viaje.fecha_salida|date:"H:i" }}</p>
+                    <p class="text-gray-500">{{ viaje.ruta.origen }}</p>
+                  </div>
+                  <div>
+                    <p class="font-black text-gray-900 text-base leading-none">{{ viaje.fecha_llegada_estimada|date:"H:i" }}</p>
+                    <p class="text-gray-500">{{ viaje.ruta.destino }}</p>
+                  </div>
+                </div>
+                <div class="ml-auto text-right">
+                  <p class="text-gray-400">Duración</p>
+                  <p class="font-bold text-gray-700">{{ viaje.ruta.duracion_estimada }}</p>
+                  <p class="text-gray-400 mt-1">{{ viaje.bus.get_tipo_servicio_display }}</p>
+                </div>
+              </div>
+
+              <!-- Asientos y precios -->
+              <div class="space-y-1.5 pb-3 border-b border-gray-100">
+                {% for asiento in asientos %}
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Asiento <strong>{{ asiento|stringformat:"02d" }}</strong></span>
+                  <span class="font-bold text-gray-800">S/ {{ precio_unitario }}</span>
+                </div>
+                {% endfor %}
+              </div>
+
+              {% if promo %}
+              <!-- Desglose con descuento -->
+              <div class="space-y-1 pb-3 border-b border-gray-100">
+                <div class="flex justify-between text-xs text-gray-500">
+                  <span>Precio normal (×{{ asientos|length }})</span>
+                  <span class="line-through">S/ {{ viaje.precio|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between text-xs text-green-600 font-semibold">
+                  <span>Descuento promo ({{ promo.porcentaje_descuento }}%)</span>
+                  <span>- S/ {{ promo.descuento|floatformat:2 }}</span>
+                </div>
+              </div>
+              {% else %}
+              <div class="flex justify-between text-xs text-gray-500 pb-1">
+                <span>Subtotal</span><span>S/ {{ total }}</span>
+              </div>
+              {% endif %}
+
+              <div class="bg-[#e95c20] rounded-xl px-4 py-3 flex justify-between items-center">
+                <span class="font-black text-white text-sm">Total</span>
+                <span class="font-black text-white text-xl">S/ {{ total }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Términos + Botón confirmar -->
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 space-y-4">
+            <label class="flex items-start gap-3 cursor-pointer select-none">
+              <input type="checkbox" id="chk-terminos" class="mt-0.5 w-4 h-4 accent-orange-500 flex-shrink-0">
+              <span class="text-xs text-gray-600 leading-relaxed">
+                Acepto los <a href="#" class="text-[#e95c20] font-semibold underline">términos y condiciones</a>
+                de compra y cancelación; y confirmo que cuento con la documentación requerida
+                por la empresa de transporte y el Gobierno de Perú.
+              </span>
+            </label>
+
+            <form method="POST" action="{% url 'viajes:confirmar' %}" id="form-confirmar">
+              {% csrf_token %}
+              <input type="hidden" name="viaje_id" value="{{ viaje.id }}">
+              <input type="hidden" name="asientos_str" value="{{ asientos_str }}">
+              <input type="hidden" name="promo_id" value="{% if promo %}{{ promo.id }}{% endif %}">
+              <input type="hidden" name="metodo_pago" id="metodo-pago-input" value="yape">
+              <input type="hidden" name="pago_qr_codigo" id="pago-qr-codigo" value="">
+              <button type="button" id="btn-confirmar-compra" onclick="submitPago()"
+                      class="w-full bg-[#e95c20] hover:bg-[#d14e18] text-white font-extrabold text-sm py-3.5 rounded-xl transition-colors shadow-lg shadow-orange-200 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                Confirmar compra
+              </button>
+            </form>
+
+            <p class="text-[10px] text-gray-400 text-center flex items-center justify-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              Pago seguro con encriptación SSL
+            </p>
+          </div>
+
+        </div><!-- /sticky -->
+      </div><!-- /col der -->
+
+    </div><!-- /flex -->
+  </div><!-- /container -->
+</div>
+
+<!-- Modal QR Yape simulado -->
+<div id="modal-yape-qr" class="fixed inset-0 z-[260] hidden">
+  <div class="absolute inset-0 bg-gray-950/70 backdrop-blur-sm"></div>
+  <div class="relative flex min-h-full items-center justify-center p-4">
+    <div class="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div class="bg-gradient-to-br from-violet-700 to-cyan-500 px-6 py-5 text-white">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[.24em] text-violet-100">Yape simulado</p>
+            <h3 class="mt-1 text-2xl font-black">Escanea el QR</h3>
+          </div>
+          <button type="button" onclick="cerrarModalYape()" class="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-5 px-6 py-6">
+        <div class="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Monto total</p>
+            <p id="modal-yape-monto" class="text-2xl font-black text-gray-950">S/ {{ total }}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Operacion</p>
+            <p id="modal-yape-operacion" class="font-mono text-lg font-black text-gray-950">----------</p>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-gray-100 bg-white p-4 text-center shadow-inner">
+          <img id="modal-yape-qr-img" src="" alt="Codigo QR de pago Yape" class="mx-auto h-56 w-56 rounded-xl border border-gray-100 bg-white p-2">
+          <a id="modal-yape-link" href="#" target="_blank" rel="noopener" class="mt-3 inline-flex text-xs font-bold text-violet-700 underline">
+            Abrir pagina de simulacion
+          </a>
+        </div>
+
+        <button type="button" id="btn-simular-yape-laptop" onclick="abrirSimuladorEnLaptop()"
+                class="w-full rounded-2xl bg-violet-700 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60">
+          Abrir simulador en esta laptop
+        </button>
+
+        <div id="modal-yape-status" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+          Esperando confirmacion de pago...
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-gray-500">
+          <span>Tiempo restante</span>
+          <span id="modal-yape-timer" class="font-mono font-black text-gray-900">--:--</span>
+        </div>
+
+        <button type="button" id="btn-regenerar-yape" onclick="generarPagoYape()" class="hidden w-full rounded-2xl border-2 border-violet-200 px-5 py-3 text-sm font-black text-violet-700 hover:border-violet-400">
+          Generar nuevo QR
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/autocomplete-pasajero.js' %}?v=4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script>
+const TIMER_KEY = 'tv_seat_timer';
+const TIMER_MS  = 10 * 60 * 1000;
+
+// ── Timer ─────────────────────────────────────────────────────────────────
+(function initTimer() {
+  const start = parseInt(localStorage.getItem(TIMER_KEY) || '0');
+  if (!start) return;
+  const banner = document.getElementById('timer-banner');
+  banner.classList.remove('hidden');
+
+  function tick() {
+    const r = Math.max(0, TIMER_MS - (Date.now() - start));
+    const s = Math.floor(r / 1000);
+    const txt = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+    const el = document.getElementById('pay-timer');
+    if (el) {
+      el.textContent = txt;
+      el.className = r < 60000 ? 'text-red-400 font-mono animate-pulse' : 'text-orange-400 font-mono';
+    }
+    if (r <= 0) {
+      clearInterval(t);
+      banner.classList.add('hidden');
+      localStorage.removeItem(TIMER_KEY);
+      mostrarExpiracion();
+    }
+  }
+  tick();
+  const t = setInterval(tick, 1000);
+})();
+
+function mostrarExpiracion() {
+  const d = document.createElement('div');
+  d.className = 'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+  d.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+      <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <h3 class="font-black text-gray-800 text-lg mb-2">Tiempo expirado</h3>
+      <p class="text-sm text-gray-500 mb-5">El tiempo para completar tu compra ha vencido. Por favor busca nuevamente tu viaje.</p>
+      <a href="/viajes/buscar/" class="block bg-[#e95c20] text-white font-bold py-3 rounded-xl hover:bg-[#d14e18] transition-colors">
+        Volver a buscar
+      </a>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+// ── Modal salir ───────────────────────────────────────────────────────────
+function abrirModalSalir() {
+  document.getElementById('modal-salir').classList.remove('hidden');
+}
+function cerrarModalSalir() {
+  document.getElementById('modal-salir').classList.add('hidden');
+}
+
+// ── Código promo / RUC ────────────────────────────────────────────────────
+let promoActivo = false, rucActivo = false;
+
+function togglePromo() {
+  promoActivo = !promoActivo;
+  document.getElementById('sub-promo').classList.toggle('visible', promoActivo);
+  const ico = document.getElementById('ico-promo');
+  ico.style.borderColor = promoActivo ? '#e95c20' : '#d1d5db';
+  ico.innerHTML = promoActivo
+    ? '<svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+    : '';
+}
+
+function toggleRUC() {
+  rucActivo = !rucActivo;
+  document.getElementById('sub-ruc').classList.toggle('visible', rucActivo);
+  const ico = document.getElementById('ico-ruc');
+  ico.style.borderColor = rucActivo ? '#e95c20' : '#d1d5db';
+  ico.innerHTML = rucActivo
+    ? '<svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+    : '';
+}
+
+// ── Métodos de pago ────────────────────────────────────────────────────────
+let metodoActivo = 'yape';
+let tipoYapeActivo = 'qr';
+let pagoYapeActual = null;
+let yapePollingTimer = null;
+let yapeCountdownTimer = null;
+let enviandoCompra = false;
+
+const CREAR_PAGO_YAPE_URL = "{% url 'viajes:crear_pago_yape' %}";
+
+function seleccionarMetodo(metodo, card) {
+  ['yape', 'tarjeta'].forEach(m => {
+    const c  = document.getElementById(`pay-${m}`);
+    const d  = document.getElementById(`dot-${m}`);
+    const s  = document.getElementById(`sub-${m}`);
+    const on = m === metodo;
+    c.classList.toggle('active', on);
+    d.style.backgroundColor = on ? '#e95c20' : 'transparent';
+    c.querySelector('.rounded-full.border-2').style.borderColor = on ? '#e95c20' : '#d1d5db';
+    s.classList.toggle('visible', on);
+  });
+  metodoActivo = metodo;
+  const metodoInput = document.getElementById('metodo-pago-input');
+  if (metodoInput) metodoInput.value = metodo;
+}
+
+function seleccionarTipoYape(tipo) {
+  tipoYapeActivo = tipo;
+  const tipoInput = document.getElementById('tipo-yape-input');
+  if (tipoInput) tipoInput.value = tipo;
+
+  const esQr = tipo === 'qr';
+  document.getElementById('yape-codigo-area').classList.toggle('hidden', esQr);
+
+  const qrBtn = document.getElementById('opcion-yape-qr');
+  const codigoBtn = document.getElementById('opcion-yape-codigo');
+  qrBtn.className = esQr
+    ? 'rounded-xl border-2 border-purple-500 bg-purple-50 px-4 py-3 text-left transition'
+    : 'rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left transition hover:border-purple-200';
+  codigoBtn.className = !esQr
+    ? 'rounded-xl border-2 border-purple-500 bg-purple-50 px-4 py-3 text-left transition'
+    : 'rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left transition hover:border-purple-200';
+}
+
+// ── QR Yape (flujo en 3 pasos) ────────────────────────────────────────────
+let _qrCreado = false;
+
+function mostrarQRYape() {
+  // Ocultar paso 1, mostrar paso 2 y campo de código
+  document.getElementById('yape-paso1').classList.add('hidden');
+  document.getElementById('yape-paso2').classList.remove('hidden');
+  document.getElementById('yape-codigo-area').classList.remove('hidden');
+
+  // Generar el QR solo una vez
+  if (!_qrCreado) {
+    const fn = () => {
+      if (typeof QRCode === 'undefined') { setTimeout(fn, 150); return; }
+      const el = document.getElementById('yape-qr');
+      if (el && el.children.length === 0) {
+        new QRCode(el, {
+          text: 'yapeperu://pay?phone=967271498&amount={{ total }}&concept=Línea Imperial',
+          width: 112,
+          height: 112,
+          colorDark: '#4c1d95',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      }
+      _qrCreado = true;
+    };
+    fn();
+  }
+}
+
+// ── Formateo de tarjeta ───────────────────────────────────────────────────
+document.getElementById('num-tarjeta').addEventListener('input', function () {
+  const v = this.value.replace(/\D/g, '').slice(0, 16);
+  this.value = v.replace(/(.{4})/g, '$1 ').trim();
+});
+
+document.getElementById('venc-tarjeta').addEventListener('input', function () {
+  let v = this.value.replace(/\D/g, '').slice(0, 4);
+  if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+  this.value = v;
+});
+
+document.getElementById('cvv-tarjeta').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 4);
+});
+
+const tipoDocEl = document.getElementById('tipo-doc');
+const numDocEl = document.getElementById('num-doc');
+
+function actualizarCampoDocumento() {
+  const tieneTipo = Boolean(tipoDocEl.value);
+  numDocEl.disabled = !tieneTipo;
+  numDocEl.placeholder = tieneTipo ? '12345678' : 'Selecciona un tipo';
+  if (!tieneTipo) numDocEl.value = '';
+}
+
+actualizarCampoDocumento();
+
+tipoDocEl.addEventListener('change', function () {
+  actualizarCampoDocumento();
+  if (!numDocEl.disabled) numDocEl.focus();
+});
+
+numDocEl.addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 8);
+});
+
+document.getElementById('telefono').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 9);
+});
+
+document.getElementById('yape-celular').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 9);
+});
+
+document.getElementById('num-operacion').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 6);
+  return;
+  const paso2 = document.getElementById('yape-paso2');
+  const paso3 = document.getElementById('yape-paso3');
+  if (this.value.length > 0) {
+    // Código en progreso → ocultar QR, mostrar confirmación
+    paso2.classList.add('hidden');
+    paso3.classList.remove('hidden');
+  } else {
+    // Campo vaciado → volver a mostrar el QR
+    paso3.classList.add('hidden');
+    if (_qrCreado) paso2.classList.remove('hidden');
+  }
+});
+
+// ── Validación ─────────────────────────────────────────────────────────────
+function getCsrfToken() {
+  const input = document.querySelector('[name=csrfmiddlewaretoken]');
+  if (input) return input.value;
+  const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+async function leerJson(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('El servidor no devolvio JSON. Revisa las URLs de pago Yape.');
+  }
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'No se pudo procesar el pago.');
+  return data;
+}
+
+function abrirModalYape() {
+  document.getElementById('modal-yape-qr').classList.remove('hidden');
+}
+
+function cerrarModalYape() {
+  document.getElementById('modal-yape-qr').classList.add('hidden');
+  detenerPollingYape();
+}
+
+function detenerPollingYape() {
+  if (yapePollingTimer) clearInterval(yapePollingTimer);
+  if (yapeCountdownTimer) clearInterval(yapeCountdownTimer);
+  yapePollingTimer = null;
+  yapeCountdownTimer = null;
+}
+
+function pintarEstadoYape(tipo, mensaje) {
+  const el = document.getElementById('modal-yape-status');
+  const estilos = {
+    info: 'rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800',
+    success: 'rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800',
+    error: 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800',
+  };
+  el.className = estilos[tipo] || estilos.info;
+  el.textContent = mensaje;
+}
+
+function actualizarTimerYape(segundos) {
+  const el = document.getElementById('modal-yape-timer');
+  const min = Math.floor(Math.max(0, segundos) / 60).toString().padStart(2, '0');
+  const sec = (Math.max(0, segundos) % 60).toString().padStart(2, '0');
+  el.textContent = `${min}:${sec}`;
+}
+
+function completarPagoYapeConfirmado() {
+  detenerPollingYape();
+  pintarEstadoYape('success', 'Pago confirmado. Emitiendo boleta...');
+  setTimeout(cerrarModalYape, 450);
+  toast('✅ Pago confirmado');
+  setTimeout(() => {
+    enviandoCompra = true;
+    document.getElementById('form-confirmar').submit();
+  }, 1000);
+}
+
+async function generarPagoYape() {
+  detenerPollingYape();
+  document.getElementById('btn-regenerar-yape').classList.add('hidden');
+  pintarEstadoYape('info', 'Generando codigo QR...');
+  abrirModalYape();
+
+  try {
+    const form = document.getElementById('form-confirmar');
+    const response = await fetch(CREAR_PAGO_YAPE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        viaje_id: form.querySelector('[name="viaje_id"]').value,
+        asientos_str: form.querySelector('[name="asientos_str"]').value,
+        promo_id: form.querySelector('[name="promo_id"]').value || null,
+      }),
+    });
+    const data = await leerJson(response);
+    pagoYapeActual = data;
+
+    document.getElementById('pago-qr-codigo').value = data.codigo;
+    document.getElementById('modal-yape-monto').textContent = `S/ ${data.monto}`;
+    document.getElementById('modal-yape-operacion').textContent = data.numero_operacion;
+    document.getElementById('modal-yape-qr-img').src = data.qr;
+    document.getElementById('modal-yape-link').href = data.url_simulacion;
+    document.getElementById('btn-simular-yape-laptop').disabled = false;
+    pintarEstadoYape('info', 'Esperando confirmacion de pago...');
+    iniciarPollingYape(data.codigo, data.segundos_restantes);
+  } catch (error) {
+    pintarEstadoYape('error', error.message);
+    document.getElementById('btn-regenerar-yape').classList.remove('hidden');
+  }
+}
+
+function abrirSimuladorEnLaptop() {
+  if (!pagoYapeActual?.codigo) {
+    pintarEstadoYape('error', 'Primero genera el QR de pago.');
+    return;
+  }
+
+  const url = pagoYapeActual.url_laptop || `/pago/${pagoYapeActual.codigo}/`;
+  window.open(url, '_blank', 'noopener');
+  pintarEstadoYape('info', 'Simulador abierto. Confirma el pago en la nueva pestaña...');
+}
+
+function iniciarPollingYape(codigo, segundosIniciales) {
+  let segundos = Number(segundosIniciales || 0);
+  actualizarTimerYape(segundos);
+  yapeCountdownTimer = setInterval(() => {
+    segundos -= 1;
+    actualizarTimerYape(segundos);
+    if (segundos <= 0) clearInterval(yapeCountdownTimer);
+  }, 1000);
+
+  async function consultar() {
+    try {
+      const response = await fetch(`/viajes/pagos/yape/${codigo}/estado/`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+      });
+      const data = await leerJson(response);
+      actualizarTimerYape(data.segundos_restantes);
+
+      if (data.estado === 'pagado') {
+        completarPagoYapeConfirmado();
+        return;
+        detenerPollingYape();
+        pintarEstadoYape('success', 'Pago confirmado. Emitiendo boleta...');
+        setTimeout(cerrarModalYape, 450);
+        toast('✅ Pago confirmado');
+        setTimeout(() => {
+          enviandoCompra = true;
+          document.getElementById('form-confirmar').submit();
+        }, 1000);
+      } else if (data.estado === 'vencido') {
+        detenerPollingYape();
+        pintarEstadoYape('error', 'El código QR expiró');
+        document.getElementById('btn-regenerar-yape').classList.remove('hidden');
+      }
+    } catch (error) {
+      detenerPollingYape();
+      pintarEstadoYape('error', error.message);
+      document.getElementById('btn-regenerar-yape').classList.remove('hidden');
+    }
+  }
+
+  consultar();
+  yapePollingTimer = setInterval(consultar, 2500);
+}
+
+function markError(el) {
+  el.classList.add('error');
+  const clear = () => el.classList.remove('error');
+  el.addEventListener('input', clear, { once: true });
+  el.addEventListener('change', clear, { once: true });
+}
+
+function simularPagoCodigoYape() {
+  const btn = document.getElementById('btn-confirmar-compra');
+  btn.disabled = true;
+  const textoOriginal = btn.innerHTML;
+  btn.innerHTML = `
+    <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+    Verificando pago...
+  `;
+  toast('Verificando pago Yape...');
+
+  setTimeout(() => {
+    enviandoCompra = true;
+    btn.innerHTML = textoOriginal;
+    document.getElementById('form-confirmar').submit();
+  }, 1400);
+}
+
+function submitPago() {
+  // 1. Datos del pasajero
+  const pasajeroFields = [
+    { id: 'tipo-doc',  label: 'Tipo de Documento' },
+    { id: 'num-doc',   label: 'Nº de Documento' },
+    { id: 'nombres',   label: 'Nombres' },
+    { id: 'apellidos', label: 'Apellidos' },
+    { id: 'email',     label: 'Correo electrónico' },
+    { id: 'telefono',  label: 'Teléfono' },
+  ];
+
+  for (const f of pasajeroFields) {
+    const el = document.getElementById(f.id);
+    if (!el.value.trim()) {
+      markError(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+      toast(`El campo "${f.label}" es obligatorio.`);
+      return;
+    }
+  }
+
+  if (!/^\d{8}$/.test(numDocEl.value.trim())) {
+    markError(numDocEl);
+    numDocEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    numDocEl.focus();
+    toast('El numero de documento debe tener exactamente 8 digitos.');
+    return;
+  }
+
+  // 2. Formato de email
+  const emailEl = document.getElementById('email');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
+    markError(emailEl);
+    emailEl.focus();
+    toast('Ingresa un correo electrónico válido.');
+    return;
+  }
+
+  if (!document.getElementById('chk-terminos').checked) {
+    toast('Debes aceptar los tÃ©rminos y condiciones para continuar.');
+    return;
+  }
+
+  if (metodoActivo === 'yape') {
+    if (tipoYapeActivo === 'qr') {
+      generarPagoYape();
+      return;
+    }
+
+    const celularYape = document.getElementById('yape-celular');
+    const codigoYape = document.getElementById('num-operacion');
+    if (!/^\d{9}$/.test(celularYape.value.trim())) {
+      markError(celularYape);
+      celularYape.focus();
+      toast('Ingresa el celular Yape de 9 digitos.');
+      return;
+    }
+    if (!/^\d{6}$/.test(codigoYape.value.trim())) {
+      markError(codigoYape);
+      codigoYape.focus();
+      toast('Ingresa el codigo de verificacion de 6 digitos.');
+      return;
+    }
+    simularPagoCodigoYape();
+    return;
+  }
+
+  // 3. Pago
+  if (metodoActivo === 'yape') {
+    if (!_qrCreado) {
+      const btn = document.querySelector('#yape-paso1 button');
+      if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast('Primero genera el QR y realiza el pago con Yape/Plin.');
+      return;
+    }
+    const opEl = document.getElementById('num-operacion');
+    if (!/^\d{6}$/.test(opEl.value)) {
+      markError(opEl);
+      opEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      opEl.focus();
+      toast('Ingresa el código de aprobación Yape de 6 dígitos.');
+      return;
+    }
+  } else if (metodoActivo === 'tarjeta') {
+    const tarjetaFields = [
+      { id: 'num-tarjeta',    label: 'Número de tarjeta' },
+      { id: 'nombre-tarjeta', label: 'Nombre en la tarjeta' },
+      { id: 'venc-tarjeta',   label: 'Vencimiento' },
+      { id: 'cvv-tarjeta',    label: 'CVV' },
+    ];
+    for (const f of tarjetaFields) {
+      const el = document.getElementById(f.id);
+      if (!el.value.trim()) {
+        markError(el);
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        toast(`El campo "${f.label}" es obligatorio.`);
+        return;
+      }
+    }
+  }
+
+  // 4. Términos
+  if (!document.getElementById('chk-terminos').checked) {
+    toast('Debes aceptar los términos y condiciones para continuar.');
+    return;
+  }
+
+  document.getElementById('form-confirmar').submit();
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[300] bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-2xl transition-opacity duration-300';
+  el.style.minWidth = '240px';
+  el.style.textAlign = 'center';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; }, 2700);
+  setTimeout(() => el.remove(), 3200);
+}
+</script>
+{% endblock %}
