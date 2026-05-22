@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Simulacion de pago Yape{% endblock %}
+
+{% block contenido %}
+<main class="min-h-screen bg-[#42146b] px-4 py-6">
+  <section class="mx-auto max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl">
+    <div class="bg-gradient-to-br from-purple-700 to-violet-900 px-6 py-6 text-white">
+      <p class="text-xs font-bold uppercase tracking-[.22em] text-purple-200">Yape simulado</p>
+      <h1 class="mt-2 text-2xl font-black">Confirmar pago</h1>
+      <p class="mt-1 text-sm text-purple-100">Operacion {{ pago.numero_operacion }}</p>
+    </div>
+
+    <div class="space-y-5 px-6 py-6">
+      <div class="rounded-2xl border border-purple-100 bg-purple-50 px-5 py-5 text-center">
+        <p class="text-xs font-bold uppercase tracking-widest text-purple-500">Monto a pagar</p>
+        <p class="mt-1 text-4xl font-black text-gray-950">S/ {{ pago.monto }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-xs font-bold uppercase text-gray-400">Asiento</p>
+          <p class="mt-1 font-black text-gray-900">{{ pago.asientos_str }}</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-xs font-bold uppercase text-gray-400">Destino</p>
+          <p class="mt-1 font-black text-gray-900">{{ pago.viaje.ruta.destino }}</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-xs font-bold uppercase text-gray-400">Operacion</p>
+          <p class="mt-1 font-mono text-base font-black text-gray-900">{{ pago.numero_operacion }}</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-xs font-bold uppercase text-gray-400">Estado</p>
+          <p id="estado-pago" class="mt-1 text-base font-black text-gray-900">{{ pago.get_estado_display }}</p>
+        </div>
+      </div>
+
+      <div id="mensaje" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        Pago pendiente. Presiona confirmar para simular el abono.
+      </div>
+
+      <button id="btn-confirmar" type="button"
+              class="w-full rounded-2xl bg-purple-700 px-5 py-4 text-base font-black text-white shadow-lg shadow-purple-200 transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-60">
+        Confirmar pago
+      </button>
+      <form class="hidden">{% csrf_token %}</form>
+
+      <p class="text-center text-xs text-gray-400">
+        Simulacion local. No se realiza ningun cargo real.
+      </p>
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const pagoCodigo = '{{ pago.codigo }}';
+const confirmarUrl = `/viajes/pagos/yape/${pagoCodigo}/confirmar/`;
+const estadoUrl = `/viajes/pagos/yape/${pagoCodigo}/estado/`;
+
+function csrfToken() {
+  const input = document.querySelector('[name=csrfmiddlewaretoken]');
+  if (input) return input.value;
+  const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function pintarEstado(data) {
+  const estado = document.getElementById('estado-pago');
+  const mensaje = document.getElementById('mensaje');
+  const btn = document.getElementById('btn-confirmar');
+
+  estado.textContent = data.estado.toUpperCase();
+
+  if (data.estado === 'pagado') {
+    mensaje.className = 'rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800';
+    mensaje.textContent = 'Pago confirmado correctamente. Puedes volver a la compra.';
+    btn.disabled = true;
+  } else if (data.estado === 'vencido') {
+    mensaje.className = 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800';
+    mensaje.textContent = 'El codigo QR expiro. Genera uno nuevo desde la compra.';
+    btn.disabled = true;
+  }
+}
+
+async function consultarEstado() {
+  const response = await fetch(estadoUrl, { headers: { Accept: 'application/json' } });
+  const data = await response.json();
+  pintarEstado(data);
+}
+
+document.getElementById('btn-confirmar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+  btn.textContent = 'Confirmando...';
+
+  try {
+    const response = await fetch(confirmarUrl, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRFToken': csrfToken(),
+      },
+    });
+    const data = await response.json();
+    pintarEstado(data);
+  } catch (error) {
+    const mensaje = document.getElementById('mensaje');
+    mensaje.className = 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800';
+    mensaje.textContent = 'No se pudo confirmar el pago.';
+    btn.disabled = false;
+  } finally {
+    btn.textContent = 'Confirmar pago';
+  }
+});
+
+consultarEstado();
+</script>
+{% endblock %}
