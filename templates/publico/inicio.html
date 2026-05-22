@@ -1,0 +1,983 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Línea Imperial — Compra tu pasaje{% endblock %}
+
+{% block extra_css %}
+<style>
+  .hero-slide {
+    transition: opacity 1.2s ease-in-out;
+  }
+
+  /* ── Estilo para datalist (desplegables) ── */
+  input[list] {
+    position: relative;
+  }
+
+  input[list]::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
+  /* Mejora visual del datalist en navegadores */
+  datalist option {
+    padding: 8px 12px;
+    background-color: #ffffff;
+    color: #1f2937;
+  }
+
+  /* Asegurar que el input no se corte */
+  input[type="date"],
+  input[list] {
+    max-width: 100%;
+  }
+
+  /* Estilo para input cuando tiene valor */
+  input:not(:placeholder-shown) {
+    font-weight: 600;
+    color: #1f2937;
+  }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ── NAVBAR ──────────────────────────────────────────────────── -->
+<nav class="bg-white shadow-lg sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-20">
+
+      <!-- LOGO - MÁS GRANDE Y PROFESIONAL -->
+      <a href="{% url 'publico:inicio' %}" class="flex items-center flex-shrink-0 -ml-2">
+        <img src="{% static 'img/logo.png' %}" alt="Línea Imperial" class="h-16 w-auto"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <!-- Fallback si no hay logo.png -->
+        <div class="items-center gap-3" style="display:none">
+          <div class="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center shadow-lg">
+            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="font-extrabold text-2xl text-gray-900 tracking-tight">
+              Trans<span class="text-red-600">Viajes</span>
+            </span>
+            <p class="text-xs text-gray-500 font-medium">Pasajes Terrestres</p>
+          </div>
+        </div>
+      </a>
+
+      <!-- LINKS DE NAVEGACIÓN -->
+      <div class="hidden lg:flex items-center gap-1">
+        <a href="#servicios"
+          class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          Nuestros servicios
+        </a>
+        <a href="#rutas"
+          class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          Destinos
+        </a>
+        <a href="{% url 'publico:promociones' %}"
+          class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          Promociones
+        </a>
+        <a href="{% url 'pagalo_web' %}"
+          class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          Págalo web
+        </a>
+        <a href="{% if request.user.is_authenticated and request.user.rol == 'pasajero' %}{% url 'publico:rastreo' %}{% else %}{% url 'cuentas:login' %}?next={% url 'publico:rastreo' %}{% endif %}"
+          class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          Rastrea tu envío
+        </a>
+      </div>
+
+      <!-- TELÉFONO + LOGIN + MENÚ -->
+      <div class="flex items-center gap-3">
+        <!-- Teléfono -->
+        <a href="https://wa.me/51967271498"
+          target="_blank" rel="noopener noreferrer"
+          class="hidden md:flex items-center gap-2 border border-orange-400 text-orange-500 px-3 py-2 rounded-full text-sm font-semibold hover:bg-orange-50 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+          967271498
+        </a>
+
+        <!-- Botón login -->
+        {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+        <a href="{% url 'cuentas:mi_cuenta' %}" class="hidden sm:flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-white hover:shadow-sm transition">
+          <div class="h-8 w-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-black">
+            {{ request.user.nombres|first|upper }}{{ request.user.apellidos|first|upper }}
+          </div>
+          <div class="leading-tight">
+            <p class="text-xs text-gray-400 font-semibold">Mi cuenta</p>
+            <p class="text-sm text-gray-800 font-bold max-w-[130px] truncate">{{ request.user.nombres }}</p>
+          </div>
+        </a>
+        <a href="{% url 'cuentas:logout' %}"
+          class="flex items-center gap-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold
+                 px-4 py-2 rounded-lg transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span class="hidden sm:inline">Cerrar sesi&oacute;n</span>
+        </a>
+        {% else %}
+        <a href="{% url 'cuentas:login' %}"
+          class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold
+                 px-4 py-2 rounded-lg transition-colors shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+          </svg>
+          <span class="hidden sm:inline">Iniciar sesi&oacute;n</span>
+        </a>
+
+        <!-- Menú hamburguesa (móvil) -->
+        {% endif %}
+        <button id="btn-menu" class="lg:hidden p-2 rounded-lg text-orange-500 border border-orange-400 hover:bg-orange-50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Menú móvil desplegable -->
+    <div id="menu-movil" class="hidden lg:hidden border-t border-gray-100 py-3 space-y-1">
+      <a href="#servicios"  class="block px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg">Nuestros servicios</a>
+      <a href="#rutas"      class="block px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg">Destinos</a>
+      <a href="{% url 'publico:promociones' %}"class="block px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg">Promociones</a>
+      <a href="{% url 'pagalo_web' %}" class="block px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg">Págalo web</a>
+      <a href="{% if request.user.is_authenticated and request.user.rol == 'pasajero' %}{% url 'publico:rastreo' %}{% else %}{% url 'cuentas:login' %}?next={% url 'publico:rastreo' %}{% endif %}" class="block px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg">Rastrea tu envío</a>
+      <a href="https://wa.me/51967271498" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-orange-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+        </svg>
+        967271498
+      </a>
+      {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+      <div class="mx-4 rounded-xl bg-gray-50 px-4 py-3">
+        <p class="text-xs font-semibold text-gray-400">Sesi&oacute;n iniciada</p>
+        <p class="text-sm font-bold text-gray-800">{{ request.user.nombre_completo }}</p>
+      </div>
+      <a href="{% url 'cuentas:mi_cuenta' %}" class="block px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-lg">Editar mi cuenta</a>
+      <a href="{% url 'cuentas:logout' %}" class="block px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-lg">Cerrar sesi&oacute;n</a>
+      {% else %}
+      <a href="{% url 'cuentas:login' %}" class="block px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-lg">Iniciar sesi&oacute;n</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO CARRUSEL ──────────────────────────────────────────────── -->
+<section class="relative text-white overflow-hidden" style="min-height: 580px;">
+
+  <!-- ── SLIDES DE FONDO ── -->
+  <div class="absolute inset-0 z-0">
+
+    <div id="slide-0"
+      class="hero-slide absolute inset-0 opacity-100"
+      style="background: linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.38)),
+             url('{% static "img/portada.png" %}') center/cover no-repeat;
+             background-color:#1a1a2e;">
+    </div>
+
+    <div id="slide-1"
+      class="hero-slide absolute inset-0 opacity-0"
+      style="background: linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.38)),
+             url('{% static "img/portada02.png" %}') center/cover no-repeat;
+             background-color:#1a1a2e;">
+    </div>
+
+    <div id="slide-2"
+      class="hero-slide absolute inset-0 opacity-0"
+      style="background: linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.38)),
+             url('{% static "img/portada03.png" %}') center/cover no-repeat;
+             background-color:#1a1a2e;">
+    </div>
+
+    <div id="slide-3"
+      class="hero-slide absolute inset-0 opacity-0"
+      style="background: linear-gradient(rgba(0,0,0,0.35),rgba(0,0,0,0.38)),
+             url('{% static "img/portada04.png" %}') center/cover no-repeat;
+             background-color:#1a1a2e;">
+    </div>
+
+  </div>
+
+  <!-- ── CONTENIDO ── -->
+  <div class="relative z-10 flex flex-col justify-start"
+       style="min-height:580px; padding: 1rem;">
+
+    <!-- ── TARJETA BUSCADOR ── -->
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/30 max-w-6xl mx-auto overflow-visible w-full px-4 sm:px-0 mt-12">
+      <form method="GET" action="{% url 'viajes:buscar' %}" id="form-buscador-pasajes" class="flex flex-col lg:flex-row items-stretch gap-0 lg:divide-x divide-gray-200">
+
+        <!-- SALIENDO DE -->
+        <div class="flex-1 px-5 py-5 min-w-0 relative z-30">
+          <label class="block text-xs font-semibold text-gray-500 mb-2">Saliendo de</label>
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full border-2 border-orange-500 flex items-center justify-center flex-shrink-0">
+              <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            </span>
+            <select name="origen" id="input-origen" required
+              class="w-full text-sm text-gray-800 font-medium focus:outline-none bg-transparent focus:bg-gray-50 px-2 py-1 rounded transition-colors">
+              <option value="">Ciudad de origen</option>
+              {% for ciudad in ciudades_activas %}
+                <option value="{{ ciudad }}">{{ ciudad }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- VOY A -->
+        <div class="flex-1 px-5 py-5 min-w-0 relative z-20">
+          <label class="block text-xs font-semibold text-gray-500 mb-2">Voy a</label>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <select name="destino" id="input-destino" required
+              class="w-full text-sm text-gray-800 font-medium focus:outline-none bg-transparent focus:bg-gray-50 px-2 py-1 rounded transition-colors">
+              <option value="">Ciudad de destino</option>
+              {% for ciudad in ciudades_activas %}
+                <option value="{{ ciudad }}">{{ ciudad }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- IDA -->
+        <div class="flex-1 px-5 py-5 min-w-0">
+          <label class="block text-xs font-semibold text-gray-500 mb-2">Ida</label>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <input type="date" name="fecha_ida" id="fecha-ida"
+              class="w-full text-sm text-gray-800 font-medium focus:outline-none bg-transparent focus:bg-gray-50 px-2 py-1 rounded transition-colors cursor-pointer">
+          </div>
+        </div>
+
+        <!-- REGRESO -->
+        <div class="flex-1 px-5 py-5 min-w-0">
+          <label class="block text-xs font-semibold text-gray-500 mb-2">Regreso</label>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <input type="date" name="fecha_regreso" id="fecha-regreso"
+              class="w-full text-sm text-gray-800 font-medium focus:outline-none bg-transparent focus:bg-gray-50 px-2 py-1 rounded transition-colors cursor-pointer">
+            <button type="button" id="btn-limpiar-regreso"
+              onclick="limpiarRegreso()"
+              class="hidden text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- BOTÓN BUSCAR -->
+        <div class="flex-shrink-0">
+          <button type="submit"
+            class="h-full w-full lg:w-auto px-8 py-5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 shadow-lg
+                   text-white font-bold text-sm tracking-wide transition-all duration-200
+                   flex items-center justify-center gap-2 rounded-b-2xl lg:rounded-r-2xl lg:rounded-bl-none hover:shadow-xl">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            BUSCAR
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="text-center mt-10 max-w-5xl mx-auto px-4">
+      <h1 class="text-3xl sm:text-4xl lg:text-[52px] font-extrabold leading-tight drop-shadow mb-3">
+        Compra pasajes de
+        <span class="text-orange-400">Línea Imperial</span> en línea
+      </h1>
+      <p class="text-gray-200 text-base sm:text-lg drop-shadow">
+        Compara precios, horarios y servicios · Reserva fácil y seguro
+      </p>
+    </div>
+
+    <!-- ── PUNTOS DE NAVEGACIÓN ── -->
+    <div class="flex items-center justify-center gap-3 mt-62">
+      <button onclick="heroGoTo(0)" id="dot-0"
+        class="hero-dot w-3 h-3 rounded-full bg-white transition-all duration-300 scale-125 shadow"></button>
+      <button onclick="heroGoTo(1)" id="dot-1"
+        class="hero-dot w-3 h-3 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300"></button>
+      <button onclick="heroGoTo(2)" id="dot-2"
+        class="hero-dot w-3 h-3 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300"></button>
+      <button onclick="heroGoTo(3)" id="dot-3"
+        class="hero-dot w-3 h-3 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300"></button>
+    </div>
+  </div>
+
+  
+
+  <!-- ── FLECHA ANTERIOR ── -->
+  <button onclick="heroPrev()"
+    class="absolute left-4 top-1/2 -translate-y-1/2 z-20
+           w-10 h-10 rounded-full bg-black/20 hover:bg-black/50 backdrop-blur-sm
+           flex items-center justify-center text-white transition-all duration-200
+           border border-white/20 hover:border-white/20 hover:scale-110">
+           
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+    </svg>
+  </button>
+
+  <!-- ── FLECHA SIGUIENTE ── -->
+  <button onclick="heroNext()"
+    class="absolute right-4 top-1/2 -translate-y-1/2 z-20
+           w-10 h-10 rounded-full bg-black/20 hover:bg-black/50 backdrop-blur-sm
+           flex items-center justify-center text-white transition-all duration-200
+           border border-white/20 hover:border-white/20 hover:scale-110">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+    </svg>
+  </button>
+
+</section>
+
+<!-- ── DESTINOS POPULARES ──────────────────────────────────────────── -->
+<section id="rutas" class="py-16 bg-gradient-to-b from-white to-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="flex items-end justify-between mb-10">
+      <div>
+        <p class="text-red-500 text-xs font-bold tracking-widest uppercase mb-1">Explora el Perú</p>
+        <h2 class="text-3xl font-extrabold text-gray-900">Destinos populares</h2>
+        <p class="text-gray-500 mt-1 text-sm">Los destinos más solicitados del país</p>
+      </div>
+      <a href="#rutas" class="text-sm text-red-600 font-semibold hover:underline hidden sm:block">Ver todos →</a>
+    </div>
+
+    <!-- Tarjetas de destinos populares - Grid más grande -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="destinos-populares">
+      <!-- Las tarjetas se generarán con JavaScript -->
+    </div>
+
+  </div>
+</section>
+
+<!-- ── NUESTROS SERVICIOS ──────────────────────────────────────────── -->
+<section id="servicios" class="py-20 bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Encabezado -->
+    <div class="text-center mb-14">
+      <p class="text-orange-500 text-xs font-bold tracking-widest uppercase mb-2">NUESTRAS SOLUCIONES</p>
+      <h2 class="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-3">Nuestros servicios</h2>
+      <p class="text-gray-500 text-base max-w-xl mx-auto">Todo lo que necesitas en un solo lugar para tus viajes</p>
+    </div>
+
+    <!-- Grid de 3 cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-7">
+
+      <!-- ── Card 1: Pasajes ── -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
+        <!-- Imagen ilustración -->
+        <div class="relative bg-[#e8edf8] flex items-center justify-center" style="height:220px">
+          <img src="{% static 'img/nuestros servicios/Pasajes.png' %}"
+               alt="Pasajes"
+               class="h-full w-full object-contain p-4"
+               onerror="this.style.display='none'">
+          <!-- Ícono círculo top-left -->
+          <div class="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#1a2748] flex items-center justify-center shadow-lg">
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20 12c0-1.1-.9-2-2-2V7c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3c1.1 0 2-.9 2-2zm-2 0H4v-1h14v1zM4 7h12v3H4V7zm0 6h12v4H4v-4z"/>
+            </svg>
+          </div>
+        </div>
+        <!-- Cuerpo -->
+        <div class="p-7 flex flex-col flex-1">
+          <h3 class="text-xl font-extrabold text-gray-900 mb-1">Pasajes</h3>
+          <div class="w-10 h-1 bg-orange-400 rounded-full mb-4"></div>
+          <p class="text-gray-500 text-sm leading-relaxed flex-1">Compra tus boletos en línea de forma rápida y segura. Elige tu ruta, horario, asiento y realiza tu pago desde casa.</p>
+          <a href="{% url 'viajes:buscar' %}"
+             class="mt-6 flex items-center justify-center gap-2 bg-[#1a2748] hover:bg-[#252f5e] text-white font-bold text-sm px-5 py-3 rounded-xl transition-colors">
+            Comprar pasaje
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- ── Card 2: Rastrea tu envío ── -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
+        <div class="relative bg-[#e8f1fb] flex items-center justify-center" style="height:220px">
+          <img src="{% static 'img/nuestros servicios/Rastrea tu envío.png' %}"
+               alt="Rastrea tu envío"
+               class="h-full w-full object-contain p-4"
+               onerror="this.style.display='none'">
+          <div class="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#2563eb] flex items-center justify-center shadow-lg">
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5S5.17 15.5 6 15.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="p-7 flex flex-col flex-1">
+          <h3 class="text-xl font-extrabold text-gray-900 mb-1">Rastrea tu envío</h3>
+          <div class="w-10 h-1 bg-blue-400 rounded-full mb-4"></div>
+          <p class="text-gray-500 text-sm leading-relaxed flex-1">Consulta en tiempo real el estado de tu encomienda desde que sale hasta que llega a destino.</p>
+          {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+          <a href="{% url 'publico:rastreo' %}"
+             class="mt-6 flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-sm px-5 py-3 rounded-xl transition-colors">
+            Rastrear envío
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          {% else %}
+          <a href="{% url 'cuentas:login' %}?next={% url 'publico:rastreo' %}"
+             class="mt-6 flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-sm px-5 py-3 rounded-xl transition-colors">
+            Rastrear envío
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ── Card 3: Promociones ── -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
+        <div class="relative bg-[#e8f5ec] flex items-center justify-center" style="height:220px">
+          <img src="{% static 'img/nuestros servicios/Promociones.png' %}"
+               alt="Promociones"
+               class="h-full w-full object-contain p-4"
+               onerror="this.style.display='none'">
+          <div class="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#16a34a] flex items-center justify-center shadow-lg">
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12.79 2.04L3 11.83V21h6v-5h6v5h6v-9.17L12.79 2.04zm-1.2 11.84a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm4.96-5.56a.75.75 0 11-1.06-1.06.75.75 0 011.06 1.06z"/>
+              <path d="M7.17 9.17L12 4.34l4.83 4.83a1.5 1.5 0 11-2.12 2.12L12 8.58l-2.71 2.71a1.5 1.5 0 01-2.12-2.12z" style="display:none"/>
+            </svg>
+          </div>
+        </div>
+        <div class="p-7 flex flex-col flex-1">
+          <h3 class="text-xl font-extrabold text-gray-900 mb-1">Promociones</h3>
+          <div class="w-10 h-1 bg-green-400 rounded-full mb-4"></div>
+          <p class="text-gray-500 text-sm leading-relaxed flex-1">Encuentra descuentos especiales en rutas seleccionadas y aprovecha precios exclusivos por tiempo limitado.</p>
+          <a href="{% url 'publico:promociones' %}"
+             class="mt-6 flex items-center justify-center gap-2 bg-[#16a34a] hover:bg-[#15803d] text-white font-bold text-sm px-5 py-3 rounded-xl transition-colors">
+            Ver promociones
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tira de beneficios -->
+    <div class="mt-12 bg-white border border-gray-200 rounded-2xl px-6 py-5 grid grid-cols-2 sm:grid-cols-4 gap-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-[#1a2748]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-800">Viaja seguro</p>
+          <p class="text-xs text-gray-400">Unidades modernas y seguras</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-[#1a2748]" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M7 13c1.66 0 3-1.34 3-3S8.66 7 7 7s-3 1.34-3 3 1.34 3 3 3zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9c0-2.21-1.79-4-4-4z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-800">Mejores comodidades</p>
+          <p class="text-xs text-gray-400">Asientos reclinables, más espacio y confort</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-[#1a2748]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-800">Puntualidad</p>
+          <p class="text-xs text-gray-400">Cumplimos con tu tiempo</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-[#1a2748]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-gray-800">Atención 24/7</p>
+          <p class="text-xs text-gray-400">Estamos para ayudarte siempre</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── FOOTER MODERNO ─────────────────────────────────────────────── -->
+<footer id="contacto" class="relative bg-slate-950 text-slate-300 overflow-hidden">
+
+  <!-- Fondo decorativo -->
+  <div class="absolute inset-0 opacity-20">
+    <div class="absolute -top-20 left-10 w-72 h-72 bg-red-600 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 right-10 w-72 h-72 bg-orange-500 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+
+      <!-- Logo / Descripción -->
+      <div class="md:col-span-2">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white">
+          Línea <span class="text-red-500">Imperial</span>
+        </h2>
+
+        <p class="mt-4 max-w-md text-sm leading-6 text-slate-400">
+          Viaja cómodo, seguro y puntual con Línea Imperial. Conectamos tus destinos
+          con un servicio confiable y moderno.
+        </p>
+
+        <div class="mt-6 flex items-center gap-3">
+          <span class="inline-flex items-center rounded-full bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 ring-1 ring-red-500/20">
+            Transporte seguro
+          </span>
+          <span class="inline-flex items-center rounded-full bg-orange-500/10 px-4 py-2 text-sm font-medium text-orange-400 ring-1 ring-orange-500/20">
+            Atención rápida
+          </span>
+        </div>
+      </div>
+
+      <!-- Enlaces -->
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-white">
+          Navegación
+        </h3>
+
+        <ul class="mt-5 space-y-3 text-sm">
+          <li>
+            <a href="#servicios" class="hover:text-red-400 transition-colors">
+              Nuestros servicios
+            </a>
+          </li>
+          <li>
+            <a href="#rutas" class="hover:text-red-400 transition-colors">
+              Destinos
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'publico:promociones' %}" class="hover:text-red-400 transition-colors">
+              Promociones
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'publico:libro_reclamaciones' %}" class="hover:text-red-400 transition-colors">
+              Libro de Reclamaciones
+            </a>
+          </li>
+          <li>
+            <a href="#contacto" class="hover:text-red-400 transition-colors">
+              Contacto
+            </a>
+          </li>
+
+          {% if request.user.is_authenticated and request.user.rol == 'pasajero' %}
+          <li>
+            <a href="{% url 'publico:rastreo' %}" class="hover:text-red-400 transition-colors">
+              Rastrea tu envío
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <!-- Contacto -->
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-white">
+          Contáctanos
+        </h3>
+
+        <div class="mt-5 space-y-4 text-sm">
+
+          <a href="https://wa.me/51967271498"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="group flex items-center gap-3 rounded-2xl bg-white/5 px-4 py-3 ring-1 ring-white/10 hover:bg-red-500/10 hover:ring-red-500/30 transition-all">
+
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10 text-green-400 group-hover:bg-green-500 group-hover:text-white transition-all">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+              </svg>
+            </span>
+
+            <div>
+              <p class="text-xs text-slate-500">WhatsApp</p>
+              <p class="font-semibold text-white">967 271 498</p>
+            </div>
+          </a>
+
+          <p class="text-slate-400">
+            Atención para consultas, reservas y promociones.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Línea inferior -->
+    <div class="mt-10 border-t border-white/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+
+      <p class="text-xs text-slate-500">
+        © {% now "Y" %} Línea Imperial. Todos los derechos reservados.
+      </p>
+
+
+    </div>
+
+  </div>
+</footer>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ── MENÚ HAMBURGUESA ─────────────────────────────────────────
+  document.getElementById('btn-menu').addEventListener('click', function () {
+    document.getElementById('menu-movil').classList.toggle('hidden');
+  });
+
+  // ── FECHAS ───────────────────────────────────────────────────
+  const hoy        = new Date().toISOString().split('T')[0];
+  const inputIda   = document.getElementById('fecha-ida');
+  const inputReg   = document.getElementById('fecha-regreso');
+  const btnLimpiar = document.getElementById('btn-limpiar-regreso');
+
+  inputIda.min   = hoy;
+  inputIda.value = hoy;
+  inputReg.min   = hoy;
+
+  inputReg.addEventListener('change', function () {
+    if (this.value) {
+      btnLimpiar.classList.remove('hidden');
+      if (this.value < inputIda.value) this.value = inputIda.value;
+    } else {
+      btnLimpiar.classList.add('hidden');
+    }
+  });
+
+  function limpiarRegreso() {
+    inputReg.value = '';
+    btnLimpiar.classList.add('hidden');
+  }
+
+  inputIda.addEventListener('change', function () {
+    inputReg.min = this.value;
+    if (inputReg.value && inputReg.value < this.value) inputReg.value = this.value;
+  });
+
+  const formBuscador = document.getElementById('form-buscador-pasajes');
+  formBuscador.addEventListener('submit', function (event) {
+    const origen = document.getElementById('input-origen').value;
+    const destino = document.getElementById('input-destino').value;
+
+    if (origen && destino && origen === destino) {
+      event.preventDefault();
+      alert('El origen y destino no pueden ser iguales.');
+      return;
+    }
+
+    if (inputReg.value && inputReg.value < inputIda.value) {
+      event.preventDefault();
+      alert('La fecha de regreso no puede ser anterior a la fecha de ida.');
+    }
+  });
+
+  // ── CARRUSEL ─────────────────────────────────────────────────
+  const TOTAL   = 4;
+  let   current = 0;
+  let   timer   = null;
+
+  function heroGoTo(n) {
+    const prevSlide = document.getElementById('slide-' + current);
+    const prevDot   = document.getElementById('dot-'   + current);
+    prevSlide.classList.remove('opacity-100');
+    prevSlide.classList.add('opacity-0');
+    prevDot.classList.remove('bg-white', 'scale-125', 'shadow');
+    prevDot.classList.add('bg-white/40');
+
+    current = ((n % TOTAL) + TOTAL) % TOTAL;
+
+    const nextSlide = document.getElementById('slide-' + current);
+    const nextDot   = document.getElementById('dot-'   + current);
+    nextSlide.classList.remove('opacity-0');
+    nextSlide.classList.add('opacity-100');
+    nextDot.classList.remove('bg-white/40');
+    nextDot.classList.add('bg-white', 'scale-125', 'shadow');
+  }
+
+  function heroNext() { clearInterval(timer); heroGoTo(current + 1); startTimer(); }
+  function heroPrev() { clearInterval(timer); heroGoTo(current - 1); startTimer(); }
+
+  function startTimer() {
+    timer = setInterval(() => heroGoTo(current + 1), 5500);
+  }
+
+  startTimer();
+
+  // ── DESTINOS POPULARES - GENERADOR DINÁMICO ─────────────────────────
+  const destinosData = [
+    {
+      nombre: 'Chiclayo',
+      imagen: 'chiclayo',
+      imagenModal: 'Chiclayo',
+      descripcion: 'Chiclayo es conocida como la "Ciudad de la Amistad". Destaca por su deliciosa gastronomía, sus museos y playas cercanas. Es ideal para probar comida norteña y conocer la cultura mochica.'
+    },
+    {
+      nombre: 'Trujillo',
+      imagen: 'Trujillo.jpg',
+      imagenModal: 'Trujillo',
+      descripcion: 'Trujillo combina historia, gastronomía y playas cercanas. Es una ruta ideal para viajes cortos desde Chiclayo y conexiones hacia Lima.'
+    },
+    {
+      nombre: 'Lima',
+      imagen: 'lima.jpg',
+      imagenModal: 'lima',
+      descripcion: 'Lima conecta oportunidades, turismo y trámites importantes. Es uno de los destinos principales para viajes interprovinciales desde el norte.'
+    },
+    {
+      nombre: 'Chachapoyas',
+      imagen: 'chachapoyas.jpg',
+      imagenModal: 'Chachapoyas',
+      descripcion: 'Chachapoyas, capital de Amazonas, destaca por su clima templado, sus paisajes de ceja de selva y su cercanía a atractivos como Kuélap y la catarata de Gocta. Es un destino ideal para turismo cultural, naturaleza y aventura.'
+    },
+    {
+      nombre: 'Cajamarca',
+      imagen: 'cajamarca',
+      imagenModal: 'Cajamarca',
+      descripcion: 'Cajamarca es una ciudad tranquila y llena de historia. Es famosa por sus baños termales, su arquitectura colonial y su clima fresco. Ideal para relajarse y conocer lugares históricos como los Baños del Inca.'
+    },
+    {
+      nombre: 'Jaén',
+      imagen: 'jaen',
+      imagenModal: 'jaen',
+      descripcion: 'Jaén tiene un clima cálido y es famosa por su café y sus hermosos paisajes naturales. Es un buen destino para disfrutar de la naturaleza y probar café peruano de excelente calidad.'
+    }
+  ];
+
+  function generarTarjetasDestinos() {
+    const contenedor = document.getElementById('destinos-populares');
+    if (!contenedor) return;
+
+    contenedor.innerHTML = '';
+
+    destinosData.forEach(destino => {
+      const tarjeta = document.createElement('div');
+      tarjeta.className = 'group relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer bg-white border border-gray-200 h-96 flex flex-col';
+
+      const imagenArchivo = destino.imagen.includes('.') ? destino.imagen : `${destino.imagen.toLowerCase()}.jpg`;
+      const imagenUrl = `/static/img/destinos/${imagenArchivo}`;
+      const fallbackUrl = destino.fallbackImage
+        ? `/static/img/${destino.fallbackImage}`
+        : '/static/img/destinos/chiclayo.jpg';
+
+      tarjeta.innerHTML = `
+        <div class="relative h-full flex-shrink-0 overflow-hidden bg-gray-200">
+          <img src="${imagenUrl}" alt="${destino.nombre}" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.onerror=null;this.src='${fallbackUrl}'">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <h3 class="text-4xl font-bold text-white drop-shadow-lg text-center">${destino.nombre}</h3>
+          </div>
+          <button data-nombre="${destino.nombre}" data-imagen="${destino.imagen}" data-imagen-modal="${destino.imagenModal}" data-fallback="${fallbackUrl}" data-descripcion="${destino.descripcion.replace(/"/g, '&quot;')}" class="btn-ver-detalles absolute bottom-5 left-1/2 -translate-x-1/2 py-2.5 px-6 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-sm transition-all">
+            Ver detalles
+          </button>
+        </div>
+      `;
+
+      contenedor.appendChild(tarjeta);
+    });
+  }
+
+  // Modal de destinos con carrusel de 3 imágenes
+  function abrirModalDestino(nombre, imagenBase, descripcion, fallbackUrl = '/static/img/destinos/chiclayo.jpg') {
+    let modal = document.getElementById('modal-destino');
+    if (modal) {
+      modal.remove();
+    }
+    
+    modal = document.createElement('div');
+    modal.id = 'modal-destino';
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm';
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden relative">
+        <button onclick="cerrarModalDestino()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl z-20 bg-white rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+        <div id="modal-contenido"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const contenido = document.getElementById('modal-contenido');
+    window.destinoFallbackActual = fallbackUrl;
+
+    contenido.innerHTML = `
+      <div class="relative bg-gray-900 h-96">
+        <img id="imagen-principal" src="/static/img/destinos/${imagenBase}01.jpg" alt="${nombre}" class="w-full h-full object-cover" onerror="this.src=window.destinoFallbackActual">
+        <button onclick="cambiarImagen(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 text-gray-900 font-bold text-xl transition-colors z-10">❮</button>
+        <button onclick="cambiarImagen(1)" class="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 text-gray-900 font-bold text-xl transition-colors z-10">❯</button>
+        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+          <button onclick="mostrarImagen(1, '${imagenBase}')" class="w-16 h-12 rounded border-2 border-red-500 overflow-hidden hover:border-red-600 transition-colors">
+            <img src="/static/img/destinos/${imagenBase}01.jpg" alt="Foto 1" class="w-full h-full object-cover" onerror="this.src=window.destinoFallbackActual">
+          </button>
+          <button onclick="mostrarImagen(2, '${imagenBase}')" class="w-16 h-12 rounded border-2 border-gray-300 overflow-hidden hover:border-gray-400 transition-colors">
+            <img src="/static/img/destinos/${imagenBase}02.jpg" alt="Foto 2" class="w-full h-full object-cover" onerror="this.src=window.destinoFallbackActual">
+          </button>
+          <button onclick="mostrarImagen(3, '${imagenBase}')" class="w-16 h-12 rounded border-2 border-gray-300 overflow-hidden hover:border-gray-400 transition-colors">
+            <img src="/static/img/destinos/${imagenBase}03.jpg" alt="Foto 3" class="w-full h-full object-cover" onerror="this.src=window.destinoFallbackActual">
+          </button>
+        </div>
+      </div>
+      <div class="p-8">
+        <h2 class="text-3xl font-bold text-gray-900 mb-4">${nombre}</h2>
+        <p class="text-gray-600 text-base leading-relaxed mb-6">${descripcion}</p>
+        <a href="/viajes/buscar/?destino=${encodeURIComponent(nombre)}"
+           class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold transition-all">
+          Buscar pasajes a ${nombre}
+        </a>
+      </div>
+    `;
+
+    window.imagenBaseActual = imagenBase;
+    window.imagenActual = 1;
+  }
+
+  function mostrarImagen(num, imagenBase) {
+    window.imagenActual = num;
+    const img = document.getElementById('imagen-principal');
+    img.src = `/static/img/destinos/${imagenBase}0${num}.jpg`;
+
+    document.querySelectorAll('#modal-contenido .w-16').forEach((btn, idx) => {
+      btn.classList.remove('border-red-500');
+      btn.classList.add('border-gray-300');
+      if (idx + 1 === num) {
+        btn.classList.add('border-red-500');
+        btn.classList.remove('border-gray-300');
+      }
+    });
+  }
+
+  function cambiarImagen(direccion) {
+    const nuevaImagen = window.imagenActual + direccion;
+    if (nuevaImagen >= 1 && nuevaImagen <= 3) {
+      mostrarImagen(nuevaImagen, window.imagenBaseActual);
+    }
+  }
+
+  function cerrarModalDestino() {
+    const modal = document.getElementById('modal-destino');
+    if (modal) modal.remove();
+  }
+
+  // Cerrar modal al hacer clic fuera
+  document.addEventListener('click', function(e) {
+    const modal = document.getElementById('modal-destino');
+    if (modal && e.target === modal) cerrarModalDestino();
+  });
+
+  // Generar tarjetas al cargar la página
+  generarTarjetasDestinos();
+
+  // Event listener para botones "Ver detalles"
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn-ver-detalles')) {
+      const nombre = e.target.getAttribute('data-nombre');
+      const imagen = e.target.getAttribute('data-imagen-modal') || e.target.getAttribute('data-imagen');
+      const fallback = e.target.getAttribute('data-fallback') || '/static/img/destinos/chiclayo.jpg';
+      const descripcion = e.target.getAttribute('data-descripcion').replace(/&quot;/g, '"');
+      abrirModalDestino(nombre, imagen, descripcion, fallback);
+    }
+  });
+
+  // ── RASTREO DE ENCOMIENDAS ───────────────────────────────────
+  const formRastreo = document.getElementById('form-rastreo');
+  const inputRastreo = document.getElementById('codigo-rastreo');
+  const resultadoRastreo = document.getElementById('resultado-rastreo');
+
+  function estadoColor(estado) {
+    const colores = {
+      registrado: 'bg-slate-100 text-slate-700',
+      en_transito: 'bg-blue-100 text-blue-700',
+      en_agencia_destino: 'bg-amber-100 text-amber-700',
+      entregado: 'bg-emerald-100 text-emerald-700',
+      cancelado: 'bg-red-100 text-red-700'
+    };
+    return colores[estado] || 'bg-gray-100 text-gray-700';
+  }
+
+  if (formRastreo) {
+    formRastreo.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const codigo = inputRastreo.value.trim().toUpperCase();
+      resultadoRastreo.classList.remove('hidden');
+
+      if (!codigo) {
+        resultadoRastreo.innerHTML = '<div class="rounded-xl bg-red-50 border border-red-100 p-4 text-sm font-semibold text-red-700">Ingresa el código de rastreo.</div>';
+        return;
+      }
+
+      resultadoRastreo.innerHTML = '<div class="rounded-xl bg-white border border-gray-100 p-4 text-sm font-semibold text-gray-500">Consultando envío...</div>';
+
+      try {
+        const response = await fetch(`/encomiendas/api/rastreo/${encodeURIComponent(codigo)}/`);
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          resultadoRastreo.innerHTML = `<div class="rounded-xl bg-red-50 border border-red-100 p-4 text-sm font-semibold text-red-700">${data.mensaje || 'No se pudo consultar el envío.'}</div>`;
+          return;
+        }
+
+        const e = data.encomienda;
+        resultadoRastreo.innerHTML = `
+          <div class="rounded-2xl bg-white border border-gray-100 p-5 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Código</p>
+                <p class="font-mono text-lg font-black text-gray-900">${e.codigo}</p>
+              </div>
+              <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${estadoColor(e.estado)}">${e.estado_texto}</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 text-sm">
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-xs">Ruta</p>
+                <p class="font-semibold text-gray-800">${e.origen} → ${e.destino}</p>
+              </div>
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-xs">Destinatario</p>
+                <p class="font-semibold text-gray-800">${e.destinatario}</p>
+              </div>
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-xs">Paquete</p>
+                <p class="font-semibold text-gray-800">${e.descripcion}</p>
+              </div>
+              <div>
+                <p class="text-gray-400 font-bold uppercase text-xs">Actualizado</p>
+                <p class="font-semibold text-gray-800">${e.fecha_actualizacion}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        resultadoRastreo.innerHTML = '<div class="rounded-xl bg-red-50 border border-red-100 p-4 text-sm font-semibold text-red-700">No se pudo conectar con el rastreo. Intenta nuevamente.</div>';
+      }
+    });
+  }
+
+</script>
+{% endblock %}
