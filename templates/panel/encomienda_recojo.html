@@ -1,0 +1,151 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Recojo / Entrega - Linea Imperial{% endblock %}
+{% block titulo_pagina %}Recojo / Entrega{% endblock %}
+
+{% block panel_contenido %}
+
+{% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for message in messages %}
+      <div class="rounded-2xl border px-4 py-3 text-sm font-bold
+                  {% if message.tags == 'success' %}border-emerald-100 bg-emerald-50 text-emerald-700{% elif message.tags == 'error' %}border-red-100 bg-red-50 text-red-700{% else %}border-blue-100 bg-blue-50 text-blue-700{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+  <section class="self-start rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+    <p class="text-xs font-black uppercase tracking-widest text-orange-500">Validacion</p>
+    <h2 class="mt-1 text-xl font-black text-slate-950">Buscar encomienda</h2>
+    <p class="mt-1 text-sm font-semibold text-slate-500">Ingresa el DNI de quien recoge y la clave de 4 digitos.</p>
+
+    <form method="POST" class="mt-6 space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="buscar">
+      <div>
+        <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">{{ buscar_form.dni.label }}</label>
+        {{ buscar_form.dni }}
+        {% for error in buscar_form.dni.errors %}<p class="mt-1 text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}
+      </div>
+      <div>
+        <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">{{ buscar_form.clave.label }}</label>
+        {{ buscar_form.clave }}
+        {% for error in buscar_form.clave.errors %}<p class="mt-1 text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}
+      </div>
+      <button class="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-orange-600">
+        Validar datos
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
+    {% if encomienda %}
+    <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-orange-500">Encomienda validada</p>
+        <h2 class="mt-1 text-2xl font-black text-slate-950">{{ encomienda.codigo }}</h2>
+        <p class="mt-1 text-sm font-semibold text-slate-500">{{ encomienda.origen }} -> {{ encomienda.destino }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{{ encomienda.get_estado_display }}</span>
+        {% if encomienda.pagado_en %}
+        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Pagado</span>
+        {% else %}
+        <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Pendiente de pago</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-5 grid gap-4 lg:grid-cols-2">
+      <div class="rounded-3xl bg-slate-50 p-5">
+        <p class="text-xs font-black uppercase tracking-widest text-slate-400">Destinatario</p>
+        <p class="mt-2 text-lg font-black text-slate-950">{{ encomienda.destinatario_nombres }}</p>
+        <p class="text-sm font-semibold text-slate-500">DNI {{ encomienda.destinatario_dni }} · Tel. {{ encomienda.destinatario_telefono }}</p>
+      </div>
+      <div class="rounded-3xl bg-slate-50 p-5">
+        <p class="text-xs font-black uppercase tracking-widest text-slate-400">Detalle</p>
+        <p class="mt-2 text-lg font-black text-slate-950">S/ {{ encomienda.monto }}</p>
+        <p class="text-sm font-semibold text-slate-500">{{ encomienda.descripcion }} · {{ encomienda.peso_kg }} kg</p>
+      </div>
+    </div>
+
+    {% if encomienda.estado == 'entregado' %}
+    <div class="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
+      <p class="text-sm font-black text-emerald-800">Esta encomienda ya fue entregada.</p>
+      <p class="mt-1 text-sm font-semibold text-emerald-700">
+        Recibio: {{ encomienda.recogido_por_nombres }} · DNI {{ encomienda.recogido_por_dni }} · {{ encomienda.entregado_en|date:"d/m/Y H:i" }}
+      </p>
+      <a href="{% url 'panel:encomienda_constancia' encomienda.id %}" target="_blank" class="mt-4 inline-flex rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white">
+        Ver constancia
+      </a>
+    </div>
+    {% else %}
+      {% if encomienda.estado != 'en_agencia_destino' %}
+      <form method="POST" class="mt-6 rounded-3xl border border-blue-100 bg-blue-50 p-5">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="marcar_destino">
+        <input type="hidden" name="dni" value="{{ dni_validado }}">
+        <input type="hidden" name="clave" value="{{ clave_validada }}">
+        <p class="text-xs font-black uppercase tracking-widest text-blue-600">Llegada a destino</p>
+        <h3 class="mt-1 text-lg font-black text-slate-950">Marcar en agencia destino</h3>
+        <p class="mt-2 text-sm font-semibold text-slate-600">
+          Primero confirma que la encomienda ya llego a la agencia destino. Luego podras cobrar, entregar y generar la constancia final.
+        </p>
+        <button class="mt-4 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700">
+          Marcar En agencia destino
+        </button>
+      </form>
+      {% elif not encomienda.pagado_en %}
+      <form method="POST" class="mt-6 rounded-3xl border border-amber-100 bg-amber-50 p-5">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="cobrar">
+        <input type="hidden" name="dni" value="{{ dni_validado }}">
+        <input type="hidden" name="clave" value="{{ clave_validada }}">
+        <p class="text-xs font-black uppercase tracking-widest text-amber-600">Cobro pendiente</p>
+        <h3 class="mt-1 text-lg font-black text-slate-950">Registrar cobro para entregar</h3>
+        <div class="mt-4 max-w-xs">
+          <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">{{ cobro_form.metodo_pago.label }}</label>
+          {{ cobro_form.metodo_pago }}
+          {% for error in cobro_form.metodo_pago.errors %}<p class="mt-1 text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}
+        </div>
+        <button class="mt-4 rounded-2xl bg-amber-600 px-5 py-2.5 text-sm font-black text-white hover:bg-amber-700">
+          Registrar pago de S/ {{ encomienda.monto }}
+        </button>
+      </form>
+      {% endif %}
+
+      {% if encomienda.estado == 'en_agencia_destino' and encomienda.pagado_en %}
+      <form method="POST" class="mt-6 rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="entregar">
+        <input type="hidden" name="dni" value="{{ dni_validado }}">
+        <input type="hidden" name="clave" value="{{ clave_validada }}">
+        <p class="text-xs font-black uppercase tracking-widest text-emerald-600">Entrega autorizada</p>
+        <h3 class="mt-1 text-lg font-black text-slate-950">Confirmar recojo</h3>
+        <div class="mt-4 max-w-md">
+          <label class="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">{{ entrega_form.recogido_por_nombres.label }}</label>
+          {{ entrega_form.recogido_por_nombres }}
+          {% for error in entrega_form.recogido_por_nombres.errors %}<p class="mt-1 text-xs font-bold text-red-600">{{ error }}</p>{% endfor %}
+        </div>
+        <p class="mt-3 text-xs font-semibold text-slate-500">La firma del cliente se toma a mano en la constancia impresa.</p>
+        <button class="mt-4 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-700">
+          Entregar y generar constancia
+        </button>
+      </form>
+      {% endif %}
+    {% endif %}
+    {% else %}
+    <div class="flex min-h-[360px] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+      <div>
+        <p class="text-lg font-black text-slate-700">Valida una encomienda para continuar.</p>
+        <p class="mt-2 text-sm font-semibold text-slate-400">No se puede entregar sin DNI y clave correcta.</p>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% endblock %}

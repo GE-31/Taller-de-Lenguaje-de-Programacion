@@ -1,0 +1,118 @@
+{% extends 'panel/base_panel.html' %}
+
+{% block titulo %}Viajes - Linea Imperial{% endblock %}
+{% block titulo_pagina %}Viajes{% endblock %}
+
+{% block panel_contenido %}
+
+{% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for message in messages %}
+      <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ message }}</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<section class="mb-6 rounded-[1.5rem] border border-orange-100 bg-white p-5 shadow-sm">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <p class="text-xs font-black uppercase tracking-widest text-orange-500">Programacion de salidas</p>
+      <h2 class="mt-1 text-2xl font-black text-slate-950">Viajes programados</h2>
+      <p class="mt-1 text-sm font-semibold text-slate-500">Se muestran solo las salidas de hoy: {{ hoy|date:"d/m/Y" }}. Viajes no registra ventas.</p>
+    </div>
+    <a href="{% url 'panel:viaje_nuevo' %}" class="inline-flex w-fit items-center rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-200">
+      + Programar viaje
+    </a>
+  </div>
+
+  <form method="GET" class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+    <input name="q" value="{{ q }}" placeholder="Ruta, bus o empresa" class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100">
+    <input type="date" name="fecha" value="{{ fecha_filtro }}" class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100">
+    <select name="estado" class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100">
+      <option value="">Todos los estados</option>
+      {% for value, label in estado_choices %}
+        <option value="{{ value }}" {% if estado_filtro == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-orange-600">Filtrar</button>
+  </form>
+</section>
+
+<section class="overflow-hidden rounded-[1.5rem] border border-orange-100 bg-white shadow-sm">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-orange-50 text-left">
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Viaje</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Horario</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Bus / Servicio</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Precio</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Asientos</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Estado</th>
+          <th class="px-5 py-4 text-xs font-black uppercase tracking-widest text-orange-700">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-orange-100/70">
+        {% for viaje in viajes %}
+          <tr class="hover:bg-orange-50/40">
+            <td class="px-5 py-4">
+              <p class="font-black text-slate-950">{{ viaje.ruta.origen }} -> {{ viaje.ruta.destino }}</p>
+              <p class="mt-1 text-xs font-semibold text-slate-500">{{ viaje.bus.empresa }}</p>
+            </td>
+            <td class="px-5 py-4">
+              <p class="font-bold text-slate-800">{{ viaje.fecha_salida|date:"d/m/Y" }}</p>
+              <p class="text-xs text-slate-500">Salida {{ viaje.fecha_salida|date:"H:i" }} · Llegada {{ viaje.fecha_llegada_estimada|date:"H:i" }}</p>
+            </td>
+            <td class="px-5 py-4">
+              <span class="rounded-xl bg-slate-100 px-3 py-1 font-mono text-xs font-black text-slate-700">{{ viaje.bus.placa }}</span>
+              <p class="mt-2 text-xs font-semibold text-slate-500">{{ viaje.bus.get_tipo_servicio_display }}</p>
+            </td>
+            <td class="px-5 py-4 font-black text-slate-950">S/ {{ viaje.precio }}</td>
+            <td class="px-5 py-4">
+              <p class="font-black text-slate-800">{{ viaje.asientos_disponibles }}/{{ viaje.bus.capacidad }}</p>
+              <p class="text-xs text-slate-400">disponibles</p>
+            </td>
+            <td class="px-5 py-4">
+              {% if viaje.estado_operativo == 'programado' %}
+                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">Programado</span>
+              {% elif viaje.estado_operativo == 'en_embarque' %}
+                <span class="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700 ring-1 ring-orange-100">En embarque</span>
+              {% elif viaje.estado_operativo == 'en_camino' %}
+                <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">En camino</span>
+              {% elif viaje.estado_operativo == 'finalizado' %}
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">Finalizado</span>
+              {% elif viaje.estado_operativo == 'cancelado' %}
+                <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700 ring-1 ring-red-100">Cancelado</span>
+              {% else %}
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{{ viaje.estado_operativo_display }}</span>
+              {% endif %}
+              <p class="mt-2 text-xs font-semibold text-slate-400">Automatico por horario</p>
+            </td>
+            <td class="px-5 py-4">
+              <div class="flex flex-wrap gap-2">
+                <a href="{% url 'panel:viaje_detalle' viaje.id %}" class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">Detalle</a>
+                {% if viaje.estado_operativo != 'finalizado' and viaje.estado_operativo != 'cancelado' and viaje.estado_operativo != 'en_camino' %}
+                  <a href="{% url 'panel:viaje_editar' viaje.id %}" class="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700">Editar</a>
+                {% endif %}
+                <a href="{% url 'panel:viaje_boletos' viaje.id %}" class="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Ver boletos</a>
+                <a href="{% url 'panel:generar_pdf_pasajeros' viaje.id %}" target="_blank" class="rounded-xl bg-orange-600 px-3 py-2 text-xs font-black text-white">Lista PDF</a>
+                {% if viaje.estado_operativo != 'cancelado' and viaje.estado_operativo != 'finalizado' and viaje.estado_operativo != 'completado' %}
+                  <form method="POST" action="{% url 'panel:viaje_cancelar' viaje.id %}">
+                    {% csrf_token %}
+                    <button class="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-700">Cancelar</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="px-6 py-14 text-center text-sm font-semibold text-slate-400">Todavia no hay viajes programados.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}
